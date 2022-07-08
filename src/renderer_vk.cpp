@@ -3480,7 +3480,7 @@ VK_IMPORT_DEVICE
 				| BGFX_STATE_PT_MASK
 				;
 
-			_stencil &= packStencil(~BGFX_STENCIL_FUNC_REF_MASK, ~BGFX_STENCIL_FUNC_REF_MASK);
+			_stencil &= ~BGFX_STENCIL_FUNC_REF_MASK;
 
 			VertexLayout layout;
 			if (0 < _numStreams)
@@ -8061,7 +8061,8 @@ VK_DESTROY
 		RenderDraw currentState;
 		currentState.clear();
 		currentState.m_stateFlags = BGFX_STATE_NONE;
-		currentState.m_stencil    = packStencil(BGFX_STENCIL_NONE, BGFX_STENCIL_NONE);
+		currentState.m_fstencil    = BGFX_STENCIL_NONE;
+        currentState.m_bstencil    = BGFX_STENCIL_NONE;
 
 		static ViewState viewState;
 		viewState.reset(_render);
@@ -8483,7 +8484,7 @@ VK_DESTROY
 
 					const VkPipeline pipeline =
 						getPipeline(draw.m_stateFlags
-							, draw.m_stencil
+							, draw.m_fstencil
 							, numStreams
 							, layouts
 							, key.m_program
@@ -8496,14 +8497,14 @@ VK_DESTROY
 						vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 					}
 
-					const bool hasStencil = 0 != draw.m_stencil;
+					const bool hasStencil = 0 != draw.m_fstencil;
 
 					if (hasStencil
-					&&  currentState.m_stencil != draw.m_stencil)
+					&&  currentState.m_fstencil != draw.m_fstencil)
 					{
-						currentState.m_stencil = draw.m_stencil;
+						currentState.m_fstencil = draw.m_fstencil;
 
-						const uint32_t fstencil = unpackStencil(0, draw.m_stencil);
+						const uint32_t fstencil = draw.m_fstencil;
 						const uint32_t ref = (fstencil&BGFX_STENCIL_FUNC_REF_MASK)>>BGFX_STENCIL_FUNC_REF_SHIFT;
 						vkCmdSetStencilReference(m_commandBuffer, VK_STENCIL_FRONT_AND_BACK, ref);
 					}

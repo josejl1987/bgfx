@@ -1637,7 +1637,8 @@ namespace bgfx
 				m_uniformIdx    = UINT8_MAX;
 
 				m_stateFlags    = BGFX_STATE_DEFAULT;
-				m_stencil       = packStencil(BGFX_STENCIL_DEFAULT, BGFX_STENCIL_DEFAULT);
+				m_fstencil      = BGFX_STENCIL_DEFAULT;
+                m_bstencil      = BGFX_STENCIL_DEFAULT;
 				m_rgba          = 0;
 				m_scissor       = UINT16_MAX;
 			}
@@ -1697,8 +1698,9 @@ namespace bgfx
 
 		Stream   m_stream[BGFX_CONFIG_MAX_VERTEX_STREAMS];
 		uint64_t m_stateFlags;
-		uint64_t m_stencil;
-		uint32_t m_rgba;
+		uint64_t m_fstencil;
+        uint64_t m_bstencil;
+        uint32_t m_rgba;
 		uint32_t m_uniformBegin;
 		uint32_t m_uniformEnd;
 		uint32_t m_startMatrix;
@@ -2433,10 +2435,11 @@ namespace bgfx
 			m_draw.m_submitFlags   |= _visible ? BGFX_SUBMIT_INTERNAL_OCCLUSION_VISIBLE : 0;
 		}
 
-		void setStencil(uint32_t _fstencil, uint32_t _bstencil)
+		void setStencil(uint64_t _fstencil, uint64_t _bstencil)
 		{
-			m_draw.m_stencil = packStencil(_fstencil, _bstencil);
-		}
+			m_draw.m_fstencil = _fstencil;
+            m_draw.m_bstencil = _bstencil;
+        }
 
 		uint16_t setScissor(uint16_t _x, uint16_t _y, uint16_t _width, uint16_t _height)
 		{

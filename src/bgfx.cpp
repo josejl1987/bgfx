@@ -3649,7 +3649,7 @@ namespace bgfx
 		BGFX_ENCODER(setCondition(_handle, _visible) );
 	}
 
-	void Encoder::setStencil(uint32_t _fstencil, uint32_t _bstencil)
+	void Encoder::setStencil(uint64_t _fstencil, uint64_t _bstencil)
 	{
 		BGFX_ENCODER(setStencil(_fstencil, _bstencil) );
 	}

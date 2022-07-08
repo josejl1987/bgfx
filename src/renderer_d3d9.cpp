@@ -3754,7 +3754,8 @@ namespace bgfx { namespace d3d9
 		RenderDraw currentState;
 		currentState.clear();
 		currentState.m_stateFlags = BGFX_STATE_NONE;
-		currentState.m_stencil    = packStencil(BGFX_STENCIL_NONE, BGFX_STENCIL_NONE);
+		currentState.m_fstencil    = BGFX_STENCIL_NONE;
+        currentState.m_bstencil    = BGFX_STENCIL_NONE;
 
 		RenderBind currentBind;
 		currentBind.clear();
@@ -3839,18 +3840,24 @@ namespace bgfx { namespace d3d9
 				uint64_t changedFlags = currentState.m_stateFlags ^ draw.m_stateFlags;
 				currentState.m_stateFlags = newFlags;
 
-				const uint64_t newStencil = draw.m_stencil;
-				uint64_t changedStencil = currentState.m_stencil ^ draw.m_stencil;
-				currentState.m_stencil = newStencil;
+				const uint64_t newfStencil = draw.m_fstencil;
+				uint64_t changedfStencil = currentState.m_fstencil ^ draw.m_fstencil;
+				currentState.m_fstencil = newfStencil;
+
+                const uint64_t newbStencil = draw.m_bstencil;
+                uint64_t changedbStencil = currentState.m_bstencil ^ draw.m_bstencil;
+                currentState.m_bstencil = newbStencil;
 
 				if (key.m_view != view)
 				{
 					currentState.clear();
 					currentState.m_scissor = !draw.m_scissor;
 					changedFlags = BGFX_STATE_MASK;
-					changedStencil = packStencil(BGFX_STENCIL_MASK, BGFX_STENCIL_MASK);
+					changedbStencil = BGFX_STENCIL_MASK;
+                    changedfStencil = BGFX_STENCIL_MASK;
 					currentState.m_stateFlags = newFlags;
-					currentState.m_stencil    = newStencil;
+					currentState.m_fstencil    = newfStencil;
+                    currentState.m_bstencil    = newbStencil;
 
 					view = key.m_view;
 					currentProgram = BGFX_INVALID_HANDLE;
@@ -3935,19 +3942,23 @@ namespace bgfx { namespace d3d9
 					}
 				}
 
-				if (0 != changedStencil)
+
+                uint64_t newfbstencil[2]={newfStencil, newbStencil};
+                uint64_t changedfbstencil[2]={changedfStencil, changedbStencil};
+
+                if (0 != changedfbstencil[1] ||   0!= changedfbstencil[0])
 				{
-					bool enable = 0 != newStencil;
+					bool enable = 0 != newfStencil;
 					DX_CHECK(device->SetRenderState(D3DRS_STENCILENABLE, enable) );
 
-					if (0 != newStencil)
+					if (0 != newfStencil)
 					{
-						uint32_t fstencil = unpackStencil(0, newStencil);
-						uint32_t bstencil = unpackStencil(1, newStencil);
+						uint32_t fstencil = newfbstencil[0];
+						uint32_t bstencil = newfbstencil[1];
 						uint8_t frontAndBack = bstencil != BGFX_STENCIL_NONE && bstencil != fstencil;
 						DX_CHECK(device->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE, 0 != frontAndBack) );
 
-						uint32_t fchanged = unpackStencil(0, changedStencil);
+						uint32_t fchanged = changedfStencil;
 						if ( (BGFX_STENCIL_FUNC_REF_MASK|BGFX_STENCIL_FUNC_RMASK_MASK) & fchanged)
 						{
 							uint32_t ref = (fstencil&BGFX_STENCIL_FUNC_REF_MASK)>>BGFX_STENCIL_FUNC_REF_SHIFT;
@@ -3957,7 +3968,7 @@ namespace bgfx { namespace d3d9
 							DX_CHECK(device->SetRenderState(D3DRS_STENCILMASK, rmask) );
 						}
 
-// 						uint32_t bchanged = unpackStencil(1, changedStencil);
+// 						uint32_t bchanged = changedBstencil;
 // 						if (BGFX_STENCIL_FUNC_RMASK_MASK & bchanged)
 // 						{
 // 							uint32_t wmask = (bstencil&BGFX_STENCIL_FUNC_RMASK_MASK)>>BGFX_STENCIL_FUNC_RMASK_SHIFT;
@@ -3966,8 +3977,8 @@ namespace bgfx { namespace d3d9
 
 						for (uint8_t ii = 0, num = frontAndBack+1; ii < num; ++ii)
 						{
-							uint32_t stencil = unpackStencil(ii, newStencil);
-							uint32_t changed = unpackStencil(ii, changedStencil);
+							uint64_t stencil = newfbstencil[ii];
+							uint64_t changed = changedfbstencil[ii];
 
 							if ( (BGFX_STENCIL_TEST_MASK|BGFX_STENCIL_FUNC_REF_MASK|BGFX_STENCIL_FUNC_RMASK_MASK) & changed)
 							{

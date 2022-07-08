@@ -1084,8 +1084,8 @@ namespace bgfx
 		/// @attention C99's equivalent binding is `bgfx_encoder_set_stencil`.
 		///
 		void setStencil(
-			  uint32_t _fstencil
-			, uint32_t _bstencil = BGFX_STENCIL_NONE
+			  uint64_t _fstencil
+			, uint64_t _bstencil = BGFX_STENCIL_NONE
 			);
 
 		/// Set scissor for draw primitive. To scissor for all primitives in

@@ -710,7 +710,7 @@ BGFX_C_API void bgfx_encoder_set_condition(bgfx_encoder_t* _this, bgfx_occlusion
 	This->setCondition(handle.cpp, _visible);
 }
 
-BGFX_C_API void bgfx_encoder_set_stencil(bgfx_encoder_t* _this, uint32_t _fstencil, uint32_t _bstencil)
+BGFX_C_API void bgfx_encoder_set_stencil(bgfx_encoder_t* _this, uint64_t _fstencil, uint64_t _bstencil)
 {
 	bgfx::Encoder* This = (bgfx::Encoder*)_this;
 	This->setStencil(_fstencil, _bstencil);
@@ -1006,7 +1006,7 @@ BGFX_C_API void bgfx_set_condition(bgfx_occlusion_query_handle_t _handle, bool _
 	bgfx::setCondition(handle.cpp, _visible);
 }
 
-BGFX_C_API void bgfx_set_stencil(uint32_t _fstencil, uint32_t _bstencil)
+BGFX_C_API void bgfx_set_stencil(uint64_t _fstencil, uint64_t _bstencil)
 {
 	bgfx::setStencil(_fstencil, _bstencil);
 }

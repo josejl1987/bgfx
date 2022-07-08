@@ -2625,9 +2625,10 @@ namespace bgfx { namespace d3d12
 				;
 		}
 
-		void setDepthStencilState(D3D12_DEPTH_STENCIL_DESC& _desc, uint64_t _state, uint64_t _stencil = 0)
+        void setDepthStencilState(D3D12_DEPTH_STENCIL_DESC &_desc, uint64_t _state, uint64_t _stencil = 0,
+                                  uint64_t _bstencil = 0)
 		{
-			const uint32_t fstencil = unpackStencil(0, _stencil);
+			const uint64_t fstencil = _stencil;
 
 			bx::memSet(&_desc, 0, sizeof(_desc) );
 			uint32_t func = (_state&BGFX_STATE_DEPTH_TEST_MASK)>>BGFX_STATE_DEPTH_TEST_SHIFT;
@@ -2638,13 +2639,13 @@ namespace bgfx { namespace d3d12
 				;
 			_desc.DepthFunc = s_cmpFunc[func];
 
-			uint32_t bstencil = unpackStencil(1, _stencil);
+			uint32_t bstencil = _bstencil;
 			uint32_t frontAndBack = bstencil != BGFX_STENCIL_NONE && bstencil != fstencil;
 			bstencil = frontAndBack ? bstencil : fstencil;
 
 			_desc.StencilEnable    = 0 != _stencil;
 			_desc.StencilReadMask  = (fstencil & BGFX_STENCIL_FUNC_RMASK_MASK) >> BGFX_STENCIL_FUNC_RMASK_SHIFT;
-			_desc.StencilWriteMask = 0xff;
+			_desc.StencilWriteMask =  (fstencil & BGFX_STENCIL_FUNC_WMASK_MASK) >> BGFX_STENCIL_FUNC_WMASK_SHIFT;
 
 			_desc.FrontFace.StencilFailOp      = s_stencilOp[(fstencil & BGFX_STENCIL_OP_FAIL_S_MASK) >> BGFX_STENCIL_OP_FAIL_S_SHIFT];
 			_desc.FrontFace.StencilDepthFailOp = s_stencilOp[(fstencil & BGFX_STENCIL_OP_FAIL_Z_MASK) >> BGFX_STENCIL_OP_FAIL_Z_SHIFT];
@@ -2869,7 +2870,7 @@ namespace bgfx { namespace d3d12
 				| BGFX_STATE_PT_MASK
 				;
 
-			_stencil &= packStencil(~BGFX_STENCIL_FUNC_REF_MASK, ~BGFX_STENCIL_FUNC_REF_MASK);
+			_stencil &= ~BGFX_STENCIL_FUNC_REF_MASK;
 
 			VertexLayout layout;
 			if (0 < _numStreams)
@@ -6006,9 +6007,11 @@ namespace bgfx { namespace d3d12
 		RenderDraw currentState;
 		currentState.clear();
 		currentState.m_stateFlags = BGFX_STATE_NONE;
-		currentState.m_stencil    = packStencil(BGFX_STENCIL_NONE, BGFX_STENCIL_NONE);
+		currentState.m_fstencil    = BGFX_STENCIL_NONE;
+        currentState.m_bstencil    = BGFX_STENCIL_NONE;
 
-		RenderBind currentBind;
+
+        RenderBind currentBind;
 		currentBind.clear();
 
 		static ViewState viewState;
@@ -6431,9 +6434,13 @@ namespace bgfx { namespace d3d12
 				uint64_t changedFlags = currentState.m_stateFlags ^ draw.m_stateFlags;
 				currentState.m_stateFlags = newFlags;
 
-				const uint64_t newStencil = draw.m_stencil;
-				uint64_t changedStencil = (currentState.m_stencil ^ draw.m_stencil) & BGFX_STENCIL_FUNC_REF_MASK;
-				currentState.m_stencil = newStencil;
+				const uint64_t newfStencil = draw.m_fstencil;
+				uint64_t changedfStencil = (currentState.m_fstencil ^ draw.m_fstencil) & BGFX_STENCIL_FUNC_REF_MASK;
+				currentState.m_fstencil = newfStencil;
+
+                const uint64_t newbStencil = draw.m_bstencil;
+                uint64_t changedbStencil = (currentState.m_bstencil ^ draw.m_bstencil) & BGFX_STENCIL_FUNC_REF_MASK;
+                currentState.m_bstencil = newbStencil;
 
 				if (resetState)
 				{
@@ -6442,9 +6449,12 @@ namespace bgfx { namespace d3d12
 					currentState.clear();
 					currentState.m_scissor = !draw.m_scissor;
 					changedFlags = BGFX_STATE_MASK;
-					changedStencil = packStencil(BGFX_STENCIL_MASK, BGFX_STENCIL_MASK);
-					currentState.m_stateFlags = newFlags;
-					currentState.m_stencil    = newStencil;
+					changedbStencil= BGFX_STENCIL_MASK;
+                    changedfStencil= BGFX_STENCIL_MASK;
+
+                    currentState.m_stateFlags = newFlags;
+					currentState.m_fstencil    = newfStencil;
+                    currentState.m_bstencil    = newbStencil;
 
 					currentBind.clear();
 
@@ -6469,9 +6479,13 @@ namespace bgfx { namespace d3d12
 					currentState.clear();
 					currentState.m_scissor = !draw.m_scissor;
 					changedFlags = BGFX_STATE_MASK;
-					changedStencil = packStencil(BGFX_STENCIL_MASK, BGFX_STENCIL_MASK);
+
+                    changedbStencil= BGFX_STENCIL_MASK;
+                    changedfStencil= BGFX_STENCIL_MASK;
+
 					currentState.m_stateFlags = newFlags;
-					currentState.m_stencil    = newStencil;
+					currentState.m_fstencil    = newfStencil;
+                    currentState.m_bstencil    = newbStencil;
 
 					currentBind.clear();
 
@@ -6528,7 +6542,7 @@ namespace bgfx { namespace d3d12
 
 					ID3D12PipelineState* pso =
 						getPipelineState(state
-							, draw.m_stencil
+							, draw.m_fstencil
 							, numStreams
 							, layouts
 							, key.m_program
@@ -6538,8 +6552,9 @@ namespace bgfx { namespace d3d12
 					uint16_t scissor = draw.m_scissor;
 					uint32_t bindHash = bx::hash<bx::HashMurmur2A>(renderBind.m_bind, sizeof(renderBind.m_bind) );
 					if (currentBindHash != bindHash
-					||  0 != changedStencil
-					|| (hasFactor && blendFactor != draw.m_rgba)
+					||  0 != changedfStencil
+                        ||  0 != changedbStencil
+                        || (hasFactor && blendFactor != draw.m_rgba)
 					|| (0 != (BGFX_STATE_PT_MASK & changedFlags)
 					||  prim.m_topology != s_primInfo[primIndex].m_topology)
 					||  currentState.m_scissor != scissor
@@ -6659,9 +6674,9 @@ namespace bgfx { namespace d3d12
 						}
 					}
 
-					if (0 != changedStencil)
+					if (0 != changedfStencil)
 					{
-						const uint32_t fstencil = unpackStencil(0, draw.m_stencil);
+						const uint64_t fstencil = draw.m_fstencil;
 						const uint32_t ref = (fstencil&BGFX_STENCIL_FUNC_REF_MASK)>>BGFX_STENCIL_FUNC_REF_SHIFT;
 						m_commandList->OMSetStencilRef(ref);
 					}
