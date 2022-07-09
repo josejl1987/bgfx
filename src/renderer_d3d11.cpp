@@ -2876,7 +2876,7 @@ namespace bgfx { namespace d3d11
 				desc.DepthWriteMask = !!(BGFX_STATE_WRITE_Z & _state) ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
 				desc.DepthFunc      = s_cmpFunc[func];
 
-				uint32_t bstencil     = unpackStencil(1, _stencil);
+				uint32_t bstencil     = _bstencil;
 				uint32_t frontAndBack = bstencil != BGFX_STENCIL_NONE && bstencil != fstencil;
 				bstencil = frontAndBack ? bstencil : fstencil;
 
