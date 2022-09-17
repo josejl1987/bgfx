@@ -343,19 +343,20 @@ flag.ResetMsaa { bits = 32, shift = 4, range = 3, base = 1 }
 	()
 
 flag.Reset { bits = 32 }
-	.None             ( 0) --- No reset flags.
-	.Fullscreen       ( 1) --- Not supported yet.
-	.Vsync            ( 8) --- Enable V-Sync.
-	.Maxanisotropy    ( 9) --- Turn on/off max anisotropy.
-	.Capture          (10) --- Begin screen capture.
-	.FlushAfterRender (14) --- Flush rendering after submitting to GPU.
-	.FlipAfterRender  (15) --- This flag specifies where flip occurs. Default behaviour is that flip occurs
-	                       --- before rendering new frame. This flag only has effect when `BGFX_CONFIG_MULTITHREADED=0`.
-	.SrgbBackbuffer   (16) --- Enable sRGB backbuffer.
-	.Hdr10            (17) --- Enable HDR10 rendering.
-	.Hidpi            (18) --- Enable HiDPI rendering.
-	.DepthClamp       (19) --- Enable depth clamp.
-	.Suspend          (20) --- Suspend rendering.
+	.None                     ( 0) --- No reset flags.
+	.Fullscreen               ( 1) --- Not supported yet.
+	.Vsync                    ( 8) --- Enable V-Sync.
+	.Maxanisotropy            ( 9) --- Turn on/off max anisotropy.
+	.Capture                  (10) --- Begin screen capture.
+	.FlushAfterRender         (14) --- Flush rendering after submitting to GPU.
+	.FlipAfterRender          (15) --- This flag specifies where flip occurs. Default behaviour is that flip occurs
+	                               --- before rendering new frame. This flag only has effect when `BGFX_CONFIG_MULTITHREADED=0`.
+	.SrgbBackbuffer           (16) --- Enable sRGB backbuffer.
+	.Hdr10                    (17) --- Enable HDR10 rendering.
+	.Hidpi                    (18) --- Enable HiDPI rendering.
+	.DepthClamp               (19) --- Enable depth clamp.
+	.Suspend                  (20) --- Suspend rendering.
+	.TransparentBackbuffer    (21) --- Transparent backbuffer. Availability depends on: `BGFX_CAPS_TRANSPARENT_BACKBUFFER`.
 	()
 
 flag.ResetFullscreen { bits = 32, shift = 0, range = 1, base = 1 }
@@ -383,6 +384,7 @@ flag.Caps { bits = 64, base = 1, name = "Caps" }
 	.Texture_2dArray        --- 2D texture array is supported.
 	.Texture_3d             --- 3D textures are supported.
 	.TextureBlit            --- Texture blit is supported.
+	.TransparentBackbuffer  --- Transparent back buffer supported.
 	.TextureCompareReserved
 	.TextureCompareLequal   --- Texture compare less equal mode is supported.
 	.TextureCubeArray       --- Cubemap texture array is supported.
@@ -591,8 +593,11 @@ enum.TextureFormat { comment = "Texture formats:" }
 	.RGBA32I
 	.RGBA32U
 	.RGBA32F
+	.B5G6R5
 	.R5G6B5
+	.BGRA4
 	.RGBA4
+	.BGR5A1
 	.RGB5A1
 	.RGB10A2
 	.RG11B10F
@@ -791,16 +796,18 @@ struct.Init { ctor }
 	                                      --- a default rendering backend will be selected appropriate to the platform.
 	                                      --- See: `bgfx::RendererType`
 
-	.vendorId       "uint16_t"            --- Vendor PCI id. If set to `BGFX_PCI_ID_NONE` it will select the first
-	                                      --- device.
+	.vendorId       "uint16_t"            --- Vendor PCI ID. If set to `BGFX_PCI_ID_NONE`, discrete and integrated
+	                                      --- GPUs will be prioritised.
 	                                      ---   - `BGFX_PCI_ID_NONE` - Autoselect adapter.
 	                                      ---   - `BGFX_PCI_ID_SOFTWARE_RASTERIZER` - Software rasterizer.
 	                                      ---   - `BGFX_PCI_ID_AMD` - AMD adapter.
+	                                      ---   - `BGFX_PCI_ID_APPLE` - Apple adapter.
 	                                      ---   - `BGFX_PCI_ID_INTEL` - Intel adapter.
-	                                      ---   - `BGFX_PCI_ID_NVIDIA` - nVidia adapter.
+	                                      ---   - `BGFX_PCI_ID_NVIDIA` - NVIDIA adapter.
+	                                      ---   - `BGFX_PCI_ID_MICROSOFT` - Microsoft adapter.
 
-	.deviceId       "uint16_t"            --- Device id. If set to 0 it will select first device, or device with
-	                                      --- matching id.
+	.deviceId       "uint16_t"            --- Device ID. If set to 0 it will select first device, or device with
+	                                      --- matching ID.
 	.capabilities   "uint64_t"            --- Capabilities initialization mask (default: UINT64_MAX).
 	.debug          "bool"                --- Enable device for debugging.
 	.profile        "bool"                --- Enable device for profiling.
@@ -1484,8 +1491,8 @@ func.getAvailInstanceDataBuffer
 ---
 func.allocTransientIndexBuffer
 	"void"
-	.tib     "TransientIndexBuffer*" { out } --- TransientIndexBuffer structure is filled and is valid
-	                                         --- for the duration of frame, and it can be reused for multiple draw
+	.tib     "TransientIndexBuffer*" { out } --- TransientIndexBuffer structure will be filled, and will be valid
+	                                         --- for the duration of frame, and can be reused for multiple draw
 	                                         --- calls.
 	.num     "uint32_t"                      --- Number of indices to allocate.
 	.index32 "bool"                          --- Set to `true` if input indices will be 32-bit.
@@ -1494,8 +1501,8 @@ func.allocTransientIndexBuffer
 --- Allocate transient vertex buffer.
 func.allocTransientVertexBuffer
 	"void"
-	.tvb    "TransientVertexBuffer*" { out } --- TransientVertexBuffer structure is filled and is valid
-	                                         --- for the duration of frame, and it can be reused for multiple draw
+	.tvb    "TransientVertexBuffer*" { out } --- TransientVertexBuffer structure will be filled, and will be valid
+	                                         --- for the duration of frame, and can be reused for multiple draw
 	                                         --- calls.
 	.num    "uint32_t"                       --- Number of vertices to allocate.
 	.layout "const VertexLayout &"           --- Vertex layout.
@@ -1506,13 +1513,13 @@ func.allocTransientVertexBuffer
 ---
 func.allocTransientBuffers
 	"bool"
-	.tvb         "TransientVertexBuffer*" { out } --- TransientVertexBuffer structure is filled and is valid
-	                                              --- for the duration of frame, and it can be reused for multiple draw
+	.tvb         "TransientVertexBuffer*" { out } --- TransientVertexBuffer structure will be filled, and will be valid
+	                                              --- for the duration of frame, and can be reused for multiple draw
 	                                              --- calls.
 	.layout      "const VertexLayout &"           --- Vertex layout.
 	.numVertices "uint32_t"                       --- Number of vertices to allocate.
-	.tib         "TransientIndexBuffer*" { out }  --- TransientIndexBuffer structure is filled and is valid
-	                                              --- for the duration of frame, and it can be reused for multiple draw
+	.tib         "TransientIndexBuffer*" { out }  --- TransientIndexBuffer structure will be filled, and will be valid
+	                                              --- for the duration of frame, and can be reused for multiple draw
 	                                              --- calls.
 	.numIndices  "uint32_t"                       --- Number of indices to allocate.
 	.index32 "bool"                               --- Set to `true` if input indices will be 32-bit.
@@ -1521,8 +1528,8 @@ func.allocTransientBuffers
 --- Allocate instance data buffer.
 func.allocInstanceDataBuffer
 	"void"
-	.idb    "InstanceDataBuffer*" { out } --- InstanceDataBuffer structure is filled and is valid
-	                                      --- for duration of frame, and it can be reused for multiple draw
+	.idb    "InstanceDataBuffer*" { out } --- InstanceDataBuffer structure will be filled, and will be valid
+	                                      --- for duration of frame, and can be reused for multiple draw
 	                                      --- calls.
 	.num    "uint32_t"                    --- Number of instances.
 	.stride "uint16_t"                    --- Instance stride. Must be multiple of 16.

@@ -1804,6 +1804,15 @@ namespace bgfx
 
 	struct DynamicIndexBuffer
 	{
+		void reset()
+		{
+			m_handle     = BGFX_INVALID_HANDLE;
+			m_offset     = 0;
+			m_size       = 0;
+			m_startIndex = 0;
+			m_flags      = 0;
+		}
+
 		IndexBufferHandle m_handle;
 		uint32_t m_offset;
 		uint32_t m_size;
@@ -1813,6 +1822,18 @@ namespace bgfx
 
 	struct DynamicVertexBuffer
 	{
+		void reset()
+		{
+			m_handle       = BGFX_INVALID_HANDLE;
+			m_offset       = 0;
+			m_size         = 0;
+			m_startVertex  = 0;
+			m_numVertices  = 0;
+			m_stride       = 0;
+			m_layoutHandle = BGFX_INVALID_HANDLE;
+			m_flags        = 0;
+		}
+
 		VertexBufferHandle m_handle;
 		uint32_t m_offset;
 		uint32_t m_size;
@@ -2380,6 +2401,7 @@ namespace bgfx
 
 		void setMarker(const char* _name)
 		{
+			UniformBuffer::update(&m_frame->m_uniformBuffer[m_uniformIdx]);
 			UniformBuffer* uniformBuffer = m_frame->m_uniformBuffer[m_uniformIdx];
 			uniformBuffer->writeMarker(_name);
 		}
@@ -3062,6 +3084,25 @@ namespace bgfx
 				return;
 			}
 
+			const uint32_t maskFlags = ~(0
+				| (0 != (g_caps.supported & BGFX_CAPS_TRANSPARENT_BACKBUFFER) ? 0 : BGFX_RESET_TRANSPARENT_BACKBUFFER)
+				| (0 != (g_caps.supported & BGFX_CAPS_HDR10)                  ? 0 : BGFX_RESET_HDR10)
+				| (0 != (g_caps.supported & BGFX_CAPS_HIDPI)                  ? 0 : BGFX_RESET_HIDPI)
+				);
+			const uint32_t oldFlags = _flags;
+			_flags &= maskFlags;
+
+#define WARN_RESET_CAPS_FLAGS(_name) \
+	BX_WARN( (oldFlags&(BGFX_RESET_##_name) ) == (_flags&(BGFX_RESET_##_name) ) \
+		, "Reset flag `BGFX_RESET_" #_name "` will be ignored, because `BGFX_CAPS_" #_name "` is not supported." \
+		)
+			WARN_RESET_CAPS_FLAGS(TRANSPARENT_BACKBUFFER);
+			WARN_RESET_CAPS_FLAGS(HDR10);
+			WARN_RESET_CAPS_FLAGS(HIDPI);
+
+#undef WARN_RESET_CAPS_FLAGS
+			BX_UNUSED(oldFlags);
+
 			BX_WARN(g_caps.limits.maxTextureSize >= _width
 				&&  g_caps.limits.maxTextureSize >= _height
 				, "Frame buffer resolution width or height can't be larger than limits.maxTextureSize %d (width %d, height %d)."
@@ -3360,7 +3401,7 @@ namespace bgfx
 					return NonLocalAllocator::kInvalidBlock;
 				}
 
-				const uint32_t allocSize = bx::max<uint32_t>(BGFX_CONFIG_DYNAMIC_INDEX_BUFFER_SIZE, _size);
+				const uint32_t allocSize = bx::max<uint32_t>(BGFX_CONFIG_DYNAMIC_INDEX_BUFFER_SIZE, bx::alignUp(_size, 1<<20) );
 
 				IndexBuffer& ib = m_indexBuffers[indexBufferHandle.idx];
 				ib.m_size = allocSize;
@@ -3466,8 +3507,7 @@ namespace bgfx
 			if (dib.m_size < _mem->size
 			&&  0 != (dib.m_flags & BGFX_BUFFER_ALLOW_RESIZE) )
 			{
-				m_dynIndexBufferAllocator.free(uint64_t(dib.m_handle.idx)<<32 | dib.m_offset);
-				m_dynIndexBufferAllocator.compact();
+				destroy(dib);
 
 				const uint64_t ptr = (0 != (dib.m_flags & BGFX_BUFFER_COMPUTE_READ) )
 					? allocIndexBuffer(_mem->size, dib.m_flags)
@@ -3505,27 +3545,31 @@ namespace bgfx
 			m_freeDynamicIndexBufferHandle[m_numFreeDynamicIndexBufferHandles++] = _handle;
 		}
 
-		void destroyDynamicIndexBufferInternal(DynamicIndexBufferHandle _handle)
+		void destroy(const DynamicIndexBuffer& _dib)
 		{
-			DynamicIndexBuffer& dib = m_dynamicIndexBuffers[_handle.idx];
-
-			if (0 != (dib.m_flags & BGFX_BUFFER_COMPUTE_READ_WRITE) )
+			if (0 != (_dib.m_flags & BGFX_BUFFER_COMPUTE_READ_WRITE))
 			{
-				destroyIndexBuffer(dib.m_handle);
+				destroyIndexBuffer(_dib.m_handle);
 			}
 			else
 			{
-				m_dynIndexBufferAllocator.free(uint64_t(dib.m_handle.idx)<<32 | dib.m_offset);
-				if (m_dynIndexBufferAllocator.compact() )
+				m_dynIndexBufferAllocator.free(uint64_t(_dib.m_handle.idx) << 32 | _dib.m_offset);
+				if (m_dynIndexBufferAllocator.compact())
 				{
-					for (uint64_t ptr = m_dynIndexBufferAllocator.remove(); 0 != ptr; ptr = m_dynIndexBufferAllocator.remove() )
+					for (uint64_t ptr = m_dynIndexBufferAllocator.remove(); 0 != ptr; ptr = m_dynIndexBufferAllocator.remove())
 					{
-						IndexBufferHandle handle = { uint16_t(ptr>>32) };
+						IndexBufferHandle handle = { uint16_t(ptr >> 32) };
 						destroyIndexBuffer(handle);
 					}
 				}
 			}
+		}
 
+		void destroyDynamicIndexBufferInternal(DynamicIndexBufferHandle _handle)
+		{
+			DynamicIndexBuffer& dib = m_dynamicIndexBuffers[_handle.idx];
+			destroy(dib);
+			dib.reset();
 			m_dynamicIndexBufferHandle.free(_handle.idx);
 		}
 
@@ -3541,7 +3585,7 @@ namespace bgfx
 					return NonLocalAllocator::kInvalidBlock;
 				}
 
-				const uint32_t allocSize = bx::max<uint32_t>(BGFX_CONFIG_DYNAMIC_VERTEX_BUFFER_SIZE, _size);
+				const uint32_t allocSize = bx::max<uint32_t>(BGFX_CONFIG_DYNAMIC_VERTEX_BUFFER_SIZE, bx::alignUp(_size, 1<<20) );
 
 				VertexBuffer& vb = m_vertexBuffers[vertexBufferHandle.idx];
 				vb.m_size   = allocSize;
@@ -3658,8 +3702,7 @@ namespace bgfx
 			if (dvb.m_size < _mem->size
 			&&  0 != (dvb.m_flags & BGFX_BUFFER_ALLOW_RESIZE) )
 			{
-				m_dynVertexBufferAllocator.free(uint64_t(dvb.m_handle.idx)<<32 | dvb.m_offset);
-				m_dynVertexBufferAllocator.compact();
+				destroy(dvb);
 
 				const uint32_t size = bx::strideAlign<16>(_mem->size, dvb.m_stride)+dvb.m_stride;
 
@@ -3701,6 +3744,26 @@ namespace bgfx
 			m_freeDynamicVertexBufferHandle[m_numFreeDynamicVertexBufferHandles++] = _handle;
 		}
 
+		void destroy(const DynamicVertexBuffer& _dvb)
+		{
+			if (0 != (_dvb.m_flags & BGFX_BUFFER_COMPUTE_READ_WRITE))
+			{
+				destroyVertexBuffer(_dvb.m_handle);
+			}
+			else
+			{
+				m_dynVertexBufferAllocator.free(uint64_t(_dvb.m_handle.idx) << 32 | _dvb.m_offset);
+				if (m_dynVertexBufferAllocator.compact())
+				{
+					for (uint64_t ptr = m_dynVertexBufferAllocator.remove(); 0 != ptr; ptr = m_dynVertexBufferAllocator.remove())
+					{
+						VertexBufferHandle handle = { uint16_t(ptr >> 32) };
+						destroyVertexBuffer(handle);
+					}
+				}
+			}
+		}
+
 		void destroyDynamicVertexBufferInternal(DynamicVertexBufferHandle _handle)
 		{
 			VertexLayoutHandle layoutHandle = m_vertexLayoutRef.release(_handle);
@@ -3714,24 +3777,8 @@ namespace bgfx
 			}
 
 			DynamicVertexBuffer& dvb = m_dynamicVertexBuffers[_handle.idx];
-
-			if (0 != (dvb.m_flags & BGFX_BUFFER_COMPUTE_READ_WRITE) )
-			{
-				destroyVertexBuffer(dvb.m_handle);
-			}
-			else
-			{
-				m_dynVertexBufferAllocator.free(uint64_t(dvb.m_handle.idx)<<32 | dvb.m_offset);
-				if (m_dynVertexBufferAllocator.compact() )
-				{
-					for (uint64_t ptr = m_dynVertexBufferAllocator.remove(); 0 != ptr; ptr = m_dynVertexBufferAllocator.remove() )
-					{
-						VertexBufferHandle handle = { uint16_t(ptr>>32) };
-						destroyVertexBuffer(handle);
-					}
-				}
-			}
-
+			destroy(dvb);
+			dvb.reset();
 			m_dynamicVertexBufferHandle.free(_handle.idx);
 		}
 
@@ -4059,7 +4106,7 @@ namespace bgfx
 				PredefinedUniform::Enum predefined = nameToPredefinedUniformEnum(name);
 				if (PredefinedUniform::Count == predefined && UniformType::End != UniformType::Enum(type) )
 				{
-					uniforms[sr.m_num] = createUniform(name, UniformType::Enum(type), regCount);
+					uniforms[sr.m_num] = createUniform(name, UniformType::Enum(type), num);
 					sr.m_num++;
 				}
 			}

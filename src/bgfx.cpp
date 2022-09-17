@@ -1553,6 +1553,7 @@ namespace bgfx
 		CAPS_FLAGS(BGFX_CAPS_TEXTURE_2D_ARRAY),
 		CAPS_FLAGS(BGFX_CAPS_TEXTURE_3D),
 		CAPS_FLAGS(BGFX_CAPS_TEXTURE_BLIT),
+		CAPS_FLAGS(BGFX_CAPS_TRANSPARENT_BACKBUFFER),
 		CAPS_FLAGS(BGFX_CAPS_TEXTURE_COMPARE_ALL),
 		CAPS_FLAGS(BGFX_CAPS_TEXTURE_COMPARE_LEQUAL),
 		CAPS_FLAGS(BGFX_CAPS_TEXTURE_CUBE_ARRAY),
@@ -1739,18 +1740,20 @@ namespace bgfx
 			, _resolution.numBackBuffers
 			, _resolution.maxFrameLatency
 			);
-		BX_TRACE("\t[%c] MSAAx%d", 0 != msaa ? 'x' : ' ', 1<<msaa);
-		BX_TRACE("\t[%c] Fullscreen",         0 != (reset & BGFX_RESET_FULLSCREEN)         ? 'x' : ' ');
-		BX_TRACE("\t[%c] V-sync",             0 != (reset & BGFX_RESET_VSYNC)              ? 'x' : ' ');
-		BX_TRACE("\t[%c] Max Anisotropy",     0 != (reset & BGFX_RESET_MAXANISOTROPY)      ? 'x' : ' ');
-		BX_TRACE("\t[%c] Capture",            0 != (reset & BGFX_RESET_CAPTURE)            ? 'x' : ' ');
-		BX_TRACE("\t[%c] Flush After Render", 0 != (reset & BGFX_RESET_FLUSH_AFTER_RENDER) ? 'x' : ' ');
-		BX_TRACE("\t[%c] Flip After Render",  0 != (reset & BGFX_RESET_FLIP_AFTER_RENDER)  ? 'x' : ' ');
-		BX_TRACE("\t[%c] sRGB Back Buffer",   0 != (reset & BGFX_RESET_SRGB_BACKBUFFER)    ? 'x' : ' ');
-		BX_TRACE("\t[%c] HDR10",              0 != (reset & BGFX_RESET_HDR10)              ? 'x' : ' ');
-		BX_TRACE("\t[%c] Hi-DPI",             0 != (reset & BGFX_RESET_HIDPI)              ? 'x' : ' ');
-		BX_TRACE("\t[%c] Depth Clamp",        0 != (reset & BGFX_RESET_DEPTH_CLAMP)        ? 'x' : ' ');
-		BX_TRACE("\t[%c] Suspend",            0 != (reset & BGFX_RESET_SUSPEND)            ? 'x' : ' ');
+
+		BX_TRACE("\t[%c] MSAAx%d",                 0 != msaa                                        ? 'x' : ' ', 1<<msaa);
+		BX_TRACE("\t[%c] Fullscreen",              0 != (reset & BGFX_RESET_FULLSCREEN)             ? 'x' : ' ');
+		BX_TRACE("\t[%c] V-sync",                  0 != (reset & BGFX_RESET_VSYNC)                  ? 'x' : ' ');
+		BX_TRACE("\t[%c] Max Anisotropy",          0 != (reset & BGFX_RESET_MAXANISOTROPY)          ? 'x' : ' ');
+		BX_TRACE("\t[%c] Capture",                 0 != (reset & BGFX_RESET_CAPTURE)                ? 'x' : ' ');
+		BX_TRACE("\t[%c] Flush After Render",      0 != (reset & BGFX_RESET_FLUSH_AFTER_RENDER)     ? 'x' : ' ');
+		BX_TRACE("\t[%c] Flip After Render",       0 != (reset & BGFX_RESET_FLIP_AFTER_RENDER)      ? 'x' : ' ');
+		BX_TRACE("\t[%c] sRGB Back Buffer",        0 != (reset & BGFX_RESET_SRGB_BACKBUFFER)        ? 'x' : ' ');
+		BX_TRACE("\t[%c] Transparent Back Buffer", 0 != (reset & BGFX_RESET_TRANSPARENT_BACKBUFFER) ? 'x' : ' ');
+		BX_TRACE("\t[%c] HDR10",                   0 != (reset & BGFX_RESET_HDR10)                  ? 'x' : ' ');
+		BX_TRACE("\t[%c] Hi-DPI",                  0 != (reset & BGFX_RESET_HIDPI)                  ? 'x' : ' ');
+		BX_TRACE("\t[%c] Depth Clamp",             0 != (reset & BGFX_RESET_DEPTH_CLAMP)            ? 'x' : ' ');
+		BX_TRACE("\t[%c] Suspend",                 0 != (reset & BGFX_RESET_SUSPEND)                ? 'x' : ' ');
 	}
 
 	TextureFormat::Enum getViableTextureFormat(const bimg::ImageContainer& _imageContainer)
@@ -1875,21 +1878,7 @@ namespace bgfx
 		m_init.resolution.maxFrameLatency = bx::min<uint8_t>(_init.resolution.maxFrameLatency, BGFX_CONFIG_MAX_FRAME_LATENCY);
 		dump(m_init.resolution);
 
-		if (g_platformData.ndt          == NULL
-		&&  g_platformData.nwh          == NULL
-		&&  g_platformData.context      == NULL
-		&&  g_platformData.backBuffer   == NULL
-		&&  g_platformData.backBufferDS == NULL)
-		{
-			bx::memCopy(&g_platformData, &m_init.platformData, sizeof(PlatformData) );
-		}
-		else
-		{
-			bx::memCopy(&m_init.platformData, &g_platformData, sizeof(PlatformData) );
-		}
-
 		if (true
-		&&  !BX_ENABLED(BX_PLATFORM_EMSCRIPTEN || BX_PLATFORM_PS4)
 		&&  RendererType::Noop != m_init.type
 		&&  NULL == m_init.platformData.ndt
 		&&  NULL == m_init.platformData.nwh
@@ -1900,6 +1889,8 @@ namespace bgfx
 		{
 			BX_TRACE("bgfx platform data like window handle or backbuffer is not set, creating headless device.");
 		}
+
+		bx::memCopy(&g_platformData, &m_init.platformData, sizeof(PlatformData) );
 
 		m_exit    = false;
 		m_flipped = true;
@@ -2663,11 +2654,6 @@ namespace bgfx
 #endif // BX_PLATFORM_WINDOWS
 	}
 
-	static int32_t compareDescending(const void* _lhs, const void* _rhs)
-	{
-		return *(const int32_t*)_rhs - *(const int32_t*)_lhs;
-	}
-
 	RendererContextI* rendererCreate(const Init& _init)
 	{
 		int32_t scores[RendererType::Count];
@@ -2706,9 +2692,12 @@ namespace bgfx
 				}
 				else if (BX_ENABLED(BX_PLATFORM_LINUX) )
 				{
-					score += RendererType::Vulkan   == renderer ? 30 : 0;
-					score += RendererType::OpenGL   == renderer ? 20 : 0;
-					score += RendererType::OpenGLES == renderer ? 10 : 0;
+					score += RendererType::Vulkan     == renderer ? 50 : 0;
+					score += RendererType::OpenGL     == renderer ? 40 : 0;
+					score += RendererType::OpenGLES   == renderer ? 30 : 0;
+					score += RendererType::Direct3D12 == renderer ? 20 : 0;
+					score += RendererType::Direct3D11 == renderer ? 10 : 0;
+					score += RendererType::Direct3D9  == renderer ?  5 : 0;
 				}
 				else if (BX_ENABLED(BX_PLATFORM_OSX) )
 				{
@@ -2745,7 +2734,7 @@ namespace bgfx
 			}
 		}
 
-		bx::quickSort(scores, numScores, sizeof(int32_t), compareDescending);
+		bx::quickSort(scores, numScores, bx::compareDescending<int32_t>);
 
 		RendererContextI* renderCtx = NULL;
 		for (uint32_t ii = 0; ii < numScores; ++ii)
@@ -4499,6 +4488,19 @@ namespace bgfx
 			if (bimg::isDepth(bimg::TextureFormat::Enum(tr.m_format) ) )
 			{
 				++depth;
+
+				BGFX_ERROR_CHECK(
+					// if BGFX_TEXTURE_RT_MSAA_X2 or greater than BGFX_TEXTURE_RT_WRITE_ONLY is required
+					// if BGFX_TEXTURE_RT with no MSSA then WRITE_ONLY is not required.
+					(1 == ((tr.m_flags & BGFX_TEXTURE_RT_MSAA_MASK) >> BGFX_TEXTURE_RT_MSAA_SHIFT))
+					|| (0 != (tr.m_flags & BGFX_TEXTURE_RT_WRITE_ONLY))
+					, _err
+					, BGFX_ERROR_FRAME_BUFFER_VALIDATION
+					, "Frame buffer depth MSAA texture cannot be resolved. It must be created with `BGFX_TEXTURE_RT_WRITE_ONLY` flag."
+					, "Attachment %d, texture flags 0x%016" PRIx64 "."
+					, ii
+					, tr.m_flags
+					);
 			}
 			else
 			{
@@ -5622,8 +5624,11 @@ BGFX_TEXTURE_FORMAT_BIMG(RGBA16S);
 BGFX_TEXTURE_FORMAT_BIMG(RGBA32I);
 BGFX_TEXTURE_FORMAT_BIMG(RGBA32U);
 BGFX_TEXTURE_FORMAT_BIMG(RGBA32F);
+BGFX_TEXTURE_FORMAT_BIMG(B5G6R5);
 BGFX_TEXTURE_FORMAT_BIMG(R5G6B5);
+BGFX_TEXTURE_FORMAT_BIMG(BGRA4);
 BGFX_TEXTURE_FORMAT_BIMG(RGBA4);
+BGFX_TEXTURE_FORMAT_BIMG(BGR5A1);
 BGFX_TEXTURE_FORMAT_BIMG(RGB5A1);
 BGFX_TEXTURE_FORMAT_BIMG(RGB10A2);
 BGFX_TEXTURE_FORMAT_BIMG(RG11B10F);

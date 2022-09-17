@@ -7,6 +7,7 @@
 
 #if BGFX_CONFIG_RENDERER_DIRECT3D11
 #	include "renderer_d3d11.h"
+#	include <bx/pixelformat.h>
 
 namespace bgfx { namespace d3d11
 {
@@ -273,8 +274,11 @@ namespace bgfx { namespace d3d11
 		{ DXGI_FORMAT_R32G32B32A32_SINT,  DXGI_FORMAT_R32G32B32A32_SINT,     DXGI_FORMAT_UNKNOWN,           DXGI_FORMAT_UNKNOWN              }, // RGBA32I
 		{ DXGI_FORMAT_R32G32B32A32_UINT,  DXGI_FORMAT_R32G32B32A32_UINT,     DXGI_FORMAT_UNKNOWN,           DXGI_FORMAT_UNKNOWN              }, // RGBA32U
 		{ DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R32G32B32A32_FLOAT,    DXGI_FORMAT_UNKNOWN,           DXGI_FORMAT_UNKNOWN              }, // RGBA32F
+		{ DXGI_FORMAT_B5G6R5_UNORM,       DXGI_FORMAT_B5G6R5_UNORM,          DXGI_FORMAT_UNKNOWN,           DXGI_FORMAT_UNKNOWN              }, // B5G6R5
 		{ DXGI_FORMAT_B5G6R5_UNORM,       DXGI_FORMAT_B5G6R5_UNORM,          DXGI_FORMAT_UNKNOWN,           DXGI_FORMAT_UNKNOWN              }, // R5G6B5
+		{ DXGI_FORMAT_B4G4R4A4_UNORM,     DXGI_FORMAT_B4G4R4A4_UNORM,        DXGI_FORMAT_UNKNOWN,           DXGI_FORMAT_UNKNOWN              }, // BGRA4
 		{ DXGI_FORMAT_B4G4R4A4_UNORM,     DXGI_FORMAT_B4G4R4A4_UNORM,        DXGI_FORMAT_UNKNOWN,           DXGI_FORMAT_UNKNOWN              }, // RGBA4
+		{ DXGI_FORMAT_B5G5R5A1_UNORM,     DXGI_FORMAT_B5G5R5A1_UNORM,        DXGI_FORMAT_UNKNOWN,           DXGI_FORMAT_UNKNOWN              }, // BGR5A1
 		{ DXGI_FORMAT_B5G5R5A1_UNORM,     DXGI_FORMAT_B5G5R5A1_UNORM,        DXGI_FORMAT_UNKNOWN,           DXGI_FORMAT_UNKNOWN              }, // RGB5A1
 		{ DXGI_FORMAT_R10G10B10A2_UNORM,  DXGI_FORMAT_R10G10B10A2_UNORM,     DXGI_FORMAT_UNKNOWN,           DXGI_FORMAT_UNKNOWN              }, // RGB10A2
 		{ DXGI_FORMAT_R11G11B10_FLOAT,    DXGI_FORMAT_R11G11B10_FLOAT,       DXGI_FORMAT_UNKNOWN,           DXGI_FORMAT_UNKNOWN              }, // RG11B10F
@@ -807,11 +811,19 @@ namespace bgfx { namespace d3d11
 			m_nvapi.init();
 
 #if USE_D3D11_DYNAMIC_LIB
-			m_d3d11Dll = bx::dlopen("d3d11.dll");
+			const char* d3d11DllName =
+#if BX_PLATFORM_LINUX
+				"d3d11.so"
+#else
+				"d3d11.dll"
+#endif // BX_PLATFORM_LINUX
+				;
+
+			m_d3d11Dll = bx::dlopen(d3d11DllName);
 
 			if (NULL == m_d3d11Dll)
 			{
-				BX_TRACE("Init error: Failed to load d3d11.dll.");
+				BX_TRACE("Init error: Failed to load %s.", d3d11DllName);
 				goto error;
 			}
 
@@ -1000,11 +1012,11 @@ namespace bgfx { namespace d3d11
 					HRESULT hr = S_OK;
 
 					m_swapEffect =
-#if BX_PLATFORM_WINDOWS
+#if BX_PLATFORM_LINUX || BX_PLATFORM_WINDOWS
 						DXGI_SWAP_EFFECT_FLIP_DISCARD
 #else
 						DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL
-#endif // !BX_PLATFORM_WINDOWS
+#endif // BX_PLATFORM_LINUX || BX_PLATFORM_WINDOWS
 						;
 
 					m_swapBufferCount = bx::clamp<uint8_t>(_init.resolution.numBackBuffers, 2, BGFX_CONFIG_MAX_BACK_BUFFERS);
@@ -1035,7 +1047,12 @@ namespace bgfx { namespace d3d11
 						: DXGI_SCALING_STRETCH
 						;
 					m_scd.swapEffect = m_swapEffect;
-					m_scd.alphaMode  = DXGI_ALPHA_MODE_IGNORE;
+
+					m_scd.alphaMode = (_init.resolution.reset & BGFX_RESET_TRANSPARENT_BACKBUFFER)
+						? DXGI_ALPHA_MODE_PREMULTIPLIED
+						: DXGI_ALPHA_MODE_IGNORE
+						;
+
 					m_scd.flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 					m_scd.maxFrameLatency = bx::min<uint8_t>(_init.resolution.maxFrameLatency, BGFX_CONFIG_MAX_FRAME_LATENCY);
@@ -1339,7 +1356,7 @@ namespace bgfx { namespace d3d11
 
 					if (DXGI_FORMAT_UNKNOWN != fmt)
 					{
-						if (BX_ENABLED(BX_PLATFORM_WINDOWS || BX_PLATFORM_WINRT) )
+						if (BX_ENABLED(BX_PLATFORM_LINUX || BX_PLATFORM_WINDOWS || BX_PLATFORM_WINRT) )
 						{
 							D3D11_FEATURE_DATA_FORMAT_SUPPORT data;
 							data.InFormat = fmt;
@@ -1468,7 +1485,7 @@ namespace bgfx { namespace d3d11
 
 					if (DXGI_FORMAT_UNKNOWN != fmtSrgb)
 					{
-						if (BX_ENABLED(BX_PLATFORM_WINDOWS || BX_PLATFORM_WINRT) )
+						if (BX_ENABLED(BX_PLATFORM_LINUX || BX_PLATFORM_WINDOWS || BX_PLATFORM_WINRT) )
 						{
 							struct D3D11_FEATURE_DATA_FORMAT_SUPPORT
 							{
@@ -3426,6 +3443,50 @@ namespace bgfx { namespace d3d11
 			}
 		}
 
+		void premultiplyBackBuffer(const ClearQuad& _clearQuad)
+		{
+			ID3D11DeviceContext* deviceCtx = m_deviceCtx;
+
+			uint64_t state = 0;
+			state |= BGFX_STATE_WRITE_RGB;
+			state |= BGFX_STATE_DEPTH_TEST_ALWAYS;
+			state |= BGFX_STATE_BLEND_FUNC_SEPARATE(BGFX_STATE_BLEND_DST_COLOR, BGFX_STATE_BLEND_DST_ALPHA, BGFX_STATE_BLEND_DST_ALPHA, BGFX_STATE_BLEND_ZERO);
+
+			uint64_t stencil = 0;
+
+			setBlendState(state);
+			setDepthStencilState(state, stencil);
+			setRasterizerState(state);
+
+			uint32_t numMrt = 1;
+			if (isValid(_clearQuad.m_program[numMrt-1]))
+			{
+				ProgramD3D11& program = m_program[_clearQuad.m_program[numMrt-1].idx];
+				m_currentProgram = &program;
+
+				const ShaderD3D11* vsh = program.m_vsh;
+				deviceCtx->VSSetShader(vsh->m_vertexShader, NULL, 0);
+				deviceCtx->VSSetConstantBuffers(0, 1, &vsh->m_buffer);
+
+				const ShaderD3D11* fsh = program.m_fsh;
+				deviceCtx->PSSetShader(fsh->m_pixelShader, NULL, 0);
+
+				VertexBufferD3D11& vb = m_vertexBuffers[_clearQuad.m_vb.idx];
+				const VertexLayout& layout = _clearQuad.m_layout;
+
+				const uint32_t stride = layout.m_stride;
+				const uint32_t offset = 0;
+
+				deviceCtx->IASetVertexBuffers(0, 1, &vb.m_ptr, &stride, &offset);
+				setInputLayout(layout, program, 0);
+
+				m_deviceCtx->OMSetRenderTargets(1, &m_backBufferColor, m_backBufferDepthStencil);
+
+				deviceCtx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+				deviceCtx->Draw(4, 0);
+			}
+		}
+
 		void clearQuad(ClearQuad& _clearQuad, const Rect& _rect, const Clear& _clear, const float _palette[][4])
 		{
 			uint32_t width;
@@ -4423,6 +4484,7 @@ namespace bgfx { namespace d3d11
 				, swizzle ? " (swizzle BGRA8 -> RGBA8)" : ""
 				);
 
+			uint8_t* temp = NULL;
 			for (uint16_t side = 0; side < numSides; ++side)
 			{
 				for (uint8_t lod = 0, num = ti.numMips; lod < num; ++lod)
@@ -4435,7 +4497,7 @@ namespace bgfx { namespace d3d11
 						if (convert)
 						{
 							uint32_t srcpitch = mip.m_width*bpp/8;
-							uint8_t* temp = (uint8_t*)BX_ALLOC(g_allocator, srcpitch*mip.m_height);
+							temp = (uint8_t*)BX_ALLOC(g_allocator, srcpitch*mip.m_height);
 							bimg::imageDecodeToBgra8(g_allocator, temp, mip.m_data, mip.m_width, mip.m_height, srcpitch, mip.m_format);
 
 							srd[kk].pSysMem = temp;
@@ -4449,6 +4511,25 @@ namespace bgfx { namespace d3d11
 						else
 						{
 							srd[kk].SysMemPitch = mip.m_width*mip.m_bpp/8;
+
+							switch (m_textureFormat)
+							{
+							case TextureFormat::R5G6B5:
+								temp = (uint8_t*)BX_ALLOC(g_allocator, srd[kk].SysMemPitch*mip.m_height);
+								bimg::imageConvert(temp, 16, bx::packB5G6R5, mip.m_data, bx::unpackR5G6B5, srd[kk].SysMemPitch*mip.m_height);
+								srd[kk].pSysMem = temp;
+								break;
+							case TextureFormat::RGBA4:
+								temp = (uint8_t*)BX_ALLOC(g_allocator, srd[kk].SysMemPitch*mip.m_height);
+								bimg::imageConvert(temp, 16, bx::packBgra4, mip.m_data, bx::unpackRgba4, srd[kk].SysMemPitch*mip.m_height);
+								srd[kk].pSysMem = temp;
+								break;
+							case TextureFormat::RGB5A1:
+								temp = (uint8_t*)BX_ALLOC(g_allocator, srd[kk].SysMemPitch*mip.m_height);
+								bimg::imageConvert(temp, 16, bx::packBgr5a1, mip.m_data, bx::unpackRgb5a1, srd[kk].SysMemPitch*mip.m_height);
+								srd[kk].pSysMem = temp;
+								break;
+							}
 						}
 
 						srd[kk].SysMemSlicePitch = mip.m_height*srd[kk].SysMemPitch;
@@ -4673,8 +4754,7 @@ namespace bgfx { namespace d3d11
 				DX_CHECK(s_renderD3D11->m_device->CreateUnorderedAccessView(m_ptr, NULL, &m_uav) );
 			}
 
-			if (convert
-			&&  0 != kk)
+			if (temp != NULL)
 			{
 				kk = 0;
 				for (uint16_t side = 0; side < numSides; ++side)
@@ -4749,13 +4829,14 @@ namespace bgfx { namespace d3d11
 			box.back  = 1;
 		}
 
+		const bimg::ImageBlockInfo& blockInfo = bimg::getBlockInfo(bimg::TextureFormat::Enum(m_textureFormat) );
+		const uint16_t blockHeight = blockInfo.blockHeight;
+		const uint16_t bpp    = blockInfo.bitsPerPixel;
 		const uint32_t subres = _mip + ( (layer + _side) * m_numMips);
 		const bool     depth  = bimg::isDepth(bimg::TextureFormat::Enum(m_textureFormat) );
-		const uint32_t bpp    = bimg::getBitsPerPixel(bimg::TextureFormat::Enum(m_textureFormat) );
 		uint32_t rectpitch  = _rect.m_width*bpp/8;
-		if (bimg::isCompressed(bimg::TextureFormat::Enum(m_textureFormat)))
+		if (bimg::isCompressed(bimg::TextureFormat::Enum(m_textureFormat) ) )
 		{
-			const bimg::ImageBlockInfo& blockInfo = bimg::getBlockInfo(bimg::TextureFormat::Enum(m_textureFormat) );
 			rectpitch = (_rect.m_width / blockInfo.blockWidth)*blockInfo.blockSize;
 		}
 
@@ -4775,6 +4856,32 @@ namespace bgfx { namespace d3d11
 
 			box.right  = bx::max(1u, m_width  >> _mip);
 			box.bottom = bx::max(1u, m_height >> _mip);
+		}
+
+		{
+			uint8_t* src = data;
+			for (uint32_t yy = 0, height = _rect.m_height; yy < height; yy += blockHeight)
+			{
+				switch (m_textureFormat)
+				{
+				case TextureFormat::R5G6B5:
+					temp = (uint8_t*)BX_ALLOC(g_allocator, rectpitch);
+					bimg::imageConvert(temp, 16, bx::packB5G6R5, src, bx::unpackR5G6B5, rectpitch);
+					data = temp;
+					break;
+				case TextureFormat::RGBA4:
+					temp = (uint8_t*)BX_ALLOC(g_allocator, rectpitch);
+					bimg::imageConvert(temp, 16, bx::packBgra4, src, bx::unpackRgba4, rectpitch);
+					data = temp;
+					break;
+				case TextureFormat::RGB5A1:
+					temp = (uint8_t*)BX_ALLOC(g_allocator, rectpitch);
+					bimg::imageConvert(temp, 16, bx::packBgr5a1, src, bx::unpackRgb5a1, rectpitch);
+					data = temp;
+					break;
+				}
+				src += srcpitch;
+			}
 		}
 
 		deviceCtx->UpdateSubresource(
@@ -6633,6 +6740,11 @@ namespace bgfx { namespace d3d11
 			blit(this, _textVideoMemBlitter, _render->m_textVideoMem);
 
 			BGFX_D3D11_PROFILER_END();
+		}
+
+		if (m_resolution.reset & BGFX_RESET_TRANSPARENT_BACKBUFFER)
+		{
+			premultiplyBackBuffer(_clearQuad);
 		}
 
 		m_deviceCtx->OMSetRenderTargets(1, s_zero.m_rtv, NULL);

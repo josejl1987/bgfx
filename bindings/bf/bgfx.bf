@@ -997,6 +997,11 @@ public static class bgfx
 		/// Suspend rendering.
 		/// </summary>
 		Suspend                = 0x00080000,
+	
+		/// <summary>
+		/// Transparent backbuffer. Availability depends on: `BGFX_CAPS_TRANSPARENT_BACKBUFFER`.
+		/// </summary>
+		TransparentBackbuffer  = 0x00100000,
 		FullscreenShift        = 0,
 		FullscreenMask         = 0x00000001,
 		ReservedShift          = 31,
@@ -1100,52 +1105,57 @@ public static class bgfx
 		/// Texture blit is supported.
 		/// </summary>
 		TextureBlit            = 0x0000000000040000,
-		TextureCompareReserved = 0x0000000000080000,
+	
+		/// <summary>
+		/// Transparent back buffer supported.
+		/// </summary>
+		TransparentBackbuffer  = 0x0000000000080000,
+		TextureCompareReserved = 0x0000000000100000,
 	
 		/// <summary>
 		/// Texture compare less equal mode is supported.
 		/// </summary>
-		TextureCompareLequal   = 0x0000000000100000,
+		TextureCompareLequal   = 0x0000000000200000,
 	
 		/// <summary>
 		/// Cubemap texture array is supported.
 		/// </summary>
-		TextureCubeArray       = 0x0000000000200000,
+		TextureCubeArray       = 0x0000000000400000,
 	
 		/// <summary>
 		/// CPU direct access to GPU texture memory.
 		/// </summary>
-		TextureDirectAccess    = 0x0000000000400000,
+		TextureDirectAccess    = 0x0000000000800000,
 	
 		/// <summary>
 		/// Read-back texture is supported.
 		/// </summary>
-		TextureReadBack        = 0x0000000000800000,
+		TextureReadBack        = 0x0000000001000000,
 	
 		/// <summary>
 		/// Vertex attribute half-float is supported.
 		/// </summary>
-		VertexAttribHalf       = 0x0000000001000000,
+		VertexAttribHalf       = 0x0000000002000000,
 	
 		/// <summary>
 		/// Vertex attribute 10_10_10_2 is supported.
 		/// </summary>
-		VertexAttribUint10     = 0x0000000002000000,
+		VertexAttribUint10     = 0x0000000004000000,
 	
 		/// <summary>
 		/// Rendering with VertexID only is supported.
 		/// </summary>
-		VertexId               = 0x0000000004000000,
+		VertexId               = 0x0000000008000000,
 	
 		/// <summary>
 		/// Viewport layer is available in vertex shader.
 		/// </summary>
-		ViewportLayerArray     = 0x0000000008000000,
+		ViewportLayerArray     = 0x0000000010000000,
 	
 		/// <summary>
 		/// All texture compare modes are supported.
 		/// </summary>
-		TextureCompareAll      = 0x0000000000180000,
+		TextureCompareAll      = 0x0000000000300000,
 	}
 	
 	[AllowDuplicates]
@@ -1736,8 +1746,11 @@ public static class bgfx
 		RGBA32I,
 		RGBA32U,
 		RGBA32F,
+		B5G6R5,
 		R5G6B5,
+		BGRA4,
 		RGBA4,
+		BGR5A1,
 		RGB5A1,
 		RGB10A2,
 		RG11B10F,
@@ -2027,7 +2040,7 @@ public static class bgfx
 		public uint8 numGPUs;
 		public GPU[4] gpu;
 		public Limits limits;
-		public uint16[85] formats;
+		public uint16[88] formats;
 	}
 	
 	[CRepr]
@@ -2867,7 +2880,7 @@ public static class bgfx
 	/// Allocate transient index buffer.
 	/// </summary>
 	///
-	/// <param name="_tib">TransientIndexBuffer structure is filled and is valid for the duration of frame, and it can be reused for multiple draw calls.</param>
+	/// <param name="_tib">TransientIndexBuffer structure will be filled, and will be valid for the duration of frame, and can be reused for multiple draw calls.</param>
 	/// <param name="_num">Number of indices to allocate.</param>
 	/// <param name="_index32">Set to `true` if input indices will be 32-bit.</param>
 	///
@@ -2878,7 +2891,7 @@ public static class bgfx
 	/// Allocate transient vertex buffer.
 	/// </summary>
 	///
-	/// <param name="_tvb">TransientVertexBuffer structure is filled and is valid for the duration of frame, and it can be reused for multiple draw calls.</param>
+	/// <param name="_tvb">TransientVertexBuffer structure will be filled, and will be valid for the duration of frame, and can be reused for multiple draw calls.</param>
 	/// <param name="_num">Number of vertices to allocate.</param>
 	/// <param name="_layout">Vertex layout.</param>
 	///
@@ -2891,10 +2904,10 @@ public static class bgfx
 	/// true.
 	/// </summary>
 	///
-	/// <param name="_tvb">TransientVertexBuffer structure is filled and is valid for the duration of frame, and it can be reused for multiple draw calls.</param>
+	/// <param name="_tvb">TransientVertexBuffer structure will be filled, and will be valid for the duration of frame, and can be reused for multiple draw calls.</param>
 	/// <param name="_layout">Vertex layout.</param>
 	/// <param name="_numVertices">Number of vertices to allocate.</param>
-	/// <param name="_tib">TransientIndexBuffer structure is filled and is valid for the duration of frame, and it can be reused for multiple draw calls.</param>
+	/// <param name="_tib">TransientIndexBuffer structure will be filled, and will be valid for the duration of frame, and can be reused for multiple draw calls.</param>
 	/// <param name="_numIndices">Number of indices to allocate.</param>
 	/// <param name="_index32">Set to `true` if input indices will be 32-bit.</param>
 	///
@@ -2905,7 +2918,7 @@ public static class bgfx
 	/// Allocate instance data buffer.
 	/// </summary>
 	///
-	/// <param name="_idb">InstanceDataBuffer structure is filled and is valid for duration of frame, and it can be reused for multiple draw calls.</param>
+	/// <param name="_idb">InstanceDataBuffer structure will be filled, and will be valid for duration of frame, and can be reused for multiple draw calls.</param>
 	/// <param name="_num">Number of instances.</param>
 	/// <param name="_stride">Instance stride. Must be multiple of 16.</param>
 	///

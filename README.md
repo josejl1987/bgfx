@@ -365,9 +365,9 @@ width="640" height="480" border="0" /></a>
 
 An open source reimplementation of the game Black & White (2001).
 
-[OpenBlack](https://github.com/openblack/openblack#openblack)
+[openblack](https://github.com/openblack/openblack#openblack)
 
-![openblack](https://user-images.githubusercontent.com/1388267/67631321-93c85380-f88c-11e9-9103-804807844af2.png)
+![openblack](https://user-images.githubusercontent.com/32263167/184559293-56cfc6a7-a7da-4876-8fce-434ba8827eae.png)
 
 ## Cluster
 
@@ -504,6 +504,19 @@ width="640" height="480" border="0" /></a>
 It comes with a 3D editor, HARFANG Studio.
 
 ![HARFANG-STUDIO](https://raw.githubusercontent.com/harfang3d/image-storage/main/portfolio/3.2.2/harfang-studio-cyber-city.png)
+
+## Marine Melodies / Resistance
+
+Demoscene musicdisk released at Evoke 2022 demoparty.
+
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=Ma1-UBa3f2E" 
+target="_blank"><img src="http://img.youtube.com/vi/Ma1-UBa3f2E/0.jpg" 
+alt="Marine Melodies"
+width="640" height="480" border="0" /></a>
+
+https://www.pouet.net/prod.php?which=91906
+
+https://github.com/astrofra/demo-marine-melodies
 
 [License (BSD 2-clause)](https://bkaradzic.github.io/bgfx/license.html)
 -----------------------------------------------------------------------

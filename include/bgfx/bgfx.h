@@ -232,8 +232,11 @@ namespace bgfx
 			RGBA32I,
 			RGBA32U,
 			RGBA32F,
+			B5G6R5,
 			R5G6B5,
+			BGRA4,
 			RGBA4,
+			BGR5A1,
 			RGB5A1,
 			RGB10A2,
 			RG11B10F,
@@ -633,7 +636,7 @@ namespace bgfx
 		TextureFormat::Enum format; //!< Backbuffer format.
 		uint32_t width;             //!< Backbuffer width.
 		uint32_t height;            //!< Backbuffer height.
-		uint32_t reset;	            //!< Reset parameters.
+		uint32_t reset;             //!< Reset parameters.
 		uint8_t  numBackBuffers;    //!< Number of back buffers.
 		uint8_t  maxFrameLatency;   //!< Maximum frame latency.
 	};
@@ -651,17 +654,19 @@ namespace bgfx
 		/// See: `bgfx::RendererType`
 		RendererType::Enum type;
 
-		/// Vendor PCI id. If set to `BGFX_PCI_ID_NONE` it will select the first
-		/// device.
-		///   - `BGFX_PCI_ID_NONE` - Autoselect adapter.
+		/// Vendor PCI ID. If set to `BGFX_PCI_ID_NONE`, discrete and integrated
+		/// GPUs will be prioritised.
+		///   - `BGFX_PCI_ID_NONE` - Auto-select adapter.
 		///   - `BGFX_PCI_ID_SOFTWARE_RASTERIZER` - Software rasterizer.
 		///   - `BGFX_PCI_ID_AMD` - AMD adapter.
+		///   - `BGFX_PCI_ID_APPLE` - Apple adapter.
 		///   - `BGFX_PCI_ID_INTEL` - Intel adapter.
-		///   - `BGFX_PCI_ID_NVIDIA` - nVidia adapter.
+		///   - `BGFX_PCI_ID_NVIDIA` - NVIDIA adapter.
+		///   - `BGFX_PCI_ID_MICROSOFT` - Microsoft adapter.
 		uint16_t vendorId;
 
-		/// Device id. If set to 0 it will select first device, or device with
-		/// matching id.
+		/// Device ID. If set to 0 it will select first device, or device with
+		/// matching ID.
 		uint16_t deviceId;
 
 		uint64_t capabilities; //!< Capabilities initialization mask (default: UINT64_MAX).
@@ -2468,9 +2473,8 @@ namespace bgfx
 
 	/// Allocate transient index buffer.
 	///
-	/// @param[out] _tib TransientIndexBuffer structure is filled and is valid
-	///   for the duration of frame, and it can be reused for multiple draw
-	///   calls.
+	/// @param[out] _tib TransientIndexBuffer structure will be filled, and will be valid
+	///   for the duration of frame, and can be reused for multiple draw calls.
 	/// @param[in] _num Number of indices to allocate.
 	/// @param[in] _index32 Set to `true` if input indices will be 32-bit.
 	///
@@ -2484,9 +2488,8 @@ namespace bgfx
 
 	/// Allocate transient vertex buffer.
 	///
-	/// @param[out] _tvb TransientVertexBuffer structure is filled and is valid
-	///   for the duration of frame, and it can be reused for multiple draw
-	///   calls.
+	/// @param[out] _tvb TransientVertexBuffer structure will be filled, and will be valid
+	///   for the duration of frame, and can be reused for multiple draw calls.
 	/// @param[in] _num Number of vertices to allocate.
 	/// @param[in] _layout Vertex layout.
 	///
@@ -2502,14 +2505,12 @@ namespace bgfx
 	/// buffers. If both space requirements are satisfied function returns
 	/// true.
 	///
-	/// @param[out] _tvb TransientVertexBuffer structure is filled and is valid
-	///   for the duration of frame, and it can be reused for multiple draw
-	///   calls.
+	/// @param[out] _tvb TransientVertexBuffer structure will be filled, and will be valid
+	///   for the duration of frame, and can be reused for multiple draw calls.
 	/// @param[in] _layout Vertex layout.
 	/// @param[in] _numVertices Number of vertices to allocate.
-	/// @param[out] _tib TransientIndexBuffer structure is filled and is valid
-	///   for the duration of frame, and it can be reused for multiple draw
-	///   calls.
+	/// @param[out] _tib TransientIndexBuffer structure will be filled, and will be valid
+	///   for the duration of frame, and can be reused for multiple draw calls.
 	/// @param[in] _numIndices Number of indices to allocate.
 	/// @param[in] _index32 Set to `true` if input indices will be 32-bit.
 	///
@@ -2526,9 +2527,8 @@ namespace bgfx
 
 	/// Allocate instance data buffer.
 	///
-	/// @param[out] _idb InstanceDataBuffer structure is filled and is valid
-	///   for duration of frame, and it can be reused for multiple draw
-	///   calls.
+	/// @param[out] _idb InstanceDataBuffer structure will be filled, and will be valid
+	///   for the duration of frame, and can be reused for multiple draw calls.
 	/// @param[in] _num Number of instances.
 	/// @param[in] _stride Instance stride. Must be multiple of 16.
 	///
