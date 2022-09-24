@@ -539,6 +539,7 @@ namespace bgfx { namespace gl
 			ARB_get_program_binary,
 			ARB_half_float_pixel,
 			ARB_half_float_vertex,
+			ARB_indirect_parameters,
 			ARB_instanced_arrays,
 			ARB_internalformat_query,
 			ARB_internalformat_query2,
@@ -756,6 +757,7 @@ namespace bgfx { namespace gl
 		{ "ARB_get_program_binary",                   BGFX_CONFIG_RENDERER_OPENGL >= 41, true  },
 		{ "ARB_half_float_pixel",                     BGFX_CONFIG_RENDERER_OPENGL >= 30, true  },
 		{ "ARB_half_float_vertex",                    BGFX_CONFIG_RENDERER_OPENGL >= 30, true  },
+		{ "ARB_indirect_parameters",                  BGFX_CONFIG_RENDERER_OPENGL >= 46, true  },
 		{ "ARB_instanced_arrays",                     BGFX_CONFIG_RENDERER_OPENGL >= 33, true  },
 		{ "ARB_internalformat_query",                 BGFX_CONFIG_RENDERER_OPENGL >= 42, true  },
 		{ "ARB_internalformat_query2",                BGFX_CONFIG_RENDERER_OPENGL >= 43, true  },
@@ -1101,20 +1103,20 @@ namespace bgfx { namespace gl
 			) );
 	}
 
-	static void GL_APIENTRY stubMultiDrawArraysIndirect(GLenum _mode, const void* _indirect, GLsizei _drawcount, GLsizei _stride)
+	static void GL_APIENTRY stubMultiDrawArraysIndirect(GLenum _mode, const void* _indirect, GLsizei _drawCount, GLsizei _stride)
 	{
 		const uint8_t* args = (const uint8_t*)_indirect;
-		for (GLsizei ii = 0; ii < _drawcount; ++ii)
+		for (GLsizei ii = 0; ii < _drawCount; ++ii)
 		{
 			GL_CHECK(glDrawArraysIndirect(_mode, (void*)args) );
 			args += _stride;
 		}
 	}
 
-	static void GL_APIENTRY stubMultiDrawElementsIndirect(GLenum _mode, GLenum _type, const void* _indirect, GLsizei _drawcount, GLsizei _stride)
+	static void GL_APIENTRY stubMultiDrawElementsIndirect(GLenum _mode, GLenum _type, const void* _indirect, GLsizei _drawCount, GLsizei _stride)
 	{
 		const uint8_t* args = (const uint8_t*)_indirect;
-		for (GLsizei ii = 0; ii < _drawcount; ++ii)
+		for (GLsizei ii = 0; ii < _drawCount; ++ii)
 		{
 			GL_CHECK(glDrawElementsIndirect(_mode, _type, (void*)args) );
 			args += _stride;
@@ -2826,6 +2828,11 @@ namespace bgfx { namespace gl
 
 				g_caps.supported |= drawIndirectSupported
 					? BGFX_CAPS_DRAW_INDIRECT
+					: 0
+					;
+
+				g_caps.supported |= s_extension[Extension::ARB_indirect_parameters].m_supported
+					? BGFX_CAPS_DRAW_INDIRECT_COUNT
 					: 0
 					;
 
@@ -5353,13 +5360,16 @@ namespace bgfx { namespace gl
 		m_usedCount = (uint8_t)used;
 
 		used = 0;
-		for (uint32_t ii = 0; ii < BX_COUNTOF(s_instanceDataName); ++ii)
+		for (uint32_t ii = 0, baseVertex = 0; ii < BX_COUNTOF(s_instanceDataName); ++ii, baseVertex += 16)
 		{
 			GLint loc = glGetAttribLocation(m_id, s_instanceDataName[ii]);
 			if (-1 != loc)
 			{
 				BX_TRACE("instance data %s: %d", s_instanceDataName[ii], loc);
-				m_instanceData[used++] = loc;
+				m_instanceData[used]   = loc;
+				m_instanceOffset[used] = uint16_t(baseVertex);
+
+				used++;
 			}
 		}
 		BX_ASSERT(used < BX_COUNTOF(m_instanceData)
@@ -5426,14 +5436,14 @@ namespace bgfx { namespace gl
 
 	void ProgramGL::bindInstanceData(uint32_t _stride, uint32_t _baseVertex) const
 	{
-		uint32_t baseVertex = _baseVertex;
 		for (uint32_t ii = 0; -1 != m_instanceData[ii]; ++ii)
 		{
 			GLint loc = m_instanceData[ii];
 			lazyEnableVertexAttribArray(loc);
+
+			const uint32_t baseVertex = _baseVertex + m_instanceOffset[ii];
 			GL_CHECK(glVertexAttribPointer(loc, 4, GL_FLOAT, GL_FALSE, _stride, (void*)(uintptr_t)baseVertex) );
 			GL_CHECK(glVertexAttribDivisor(loc, 1) );
-			baseVertex += 16;
 		}
 	}
 
@@ -6880,7 +6890,7 @@ namespace bgfx { namespace gl
 				{
 					bx::StringView str = lineReader.next();
 					BX_TRACE("%3d %.*s", line, str.getLength(), str.getPtr() );
-					BX_UNUSED(str);
+					BX_UNUSED(str, line);
 				}
 
 				GLsizei len;
@@ -7511,7 +7521,7 @@ namespace bgfx { namespace gl
 		if (m_timerQuerySupport
 		&&  !BX_ENABLED(BX_PLATFORM_OSX) )
 		{
-			frameQueryIdx = m_gpuTimer.begin(BGFX_CONFIG_MAX_VIEWS);
+			frameQueryIdx = m_gpuTimer.begin(BGFX_CONFIG_MAX_VIEWS, _render->m_frameNum);
 		}
 
 		if (0 < _render->m_iboffset)
@@ -8422,6 +8432,19 @@ namespace bgfx { namespace gl
 								GL_CHECK(glBindBuffer(GL_DRAW_INDIRECT_BUFFER, vb.m_id) );
 							}
 
+							uint32_t numOffsetIndirect = 0;
+							if (isValid(draw.m_numIndirectBuffer) )
+							{
+								if (currentState.m_numIndirectBuffer.idx != draw.m_numIndirectBuffer.idx)
+								{
+									const IndexBufferGL& nb = m_indexBuffers[draw.m_numIndirectBuffer.idx];
+									currentState.m_numIndirectBuffer = draw.m_numIndirectBuffer;
+									GL_CHECK(glBindBuffer(GL_PARAMETER_BUFFER_ARB, nb.m_id) );
+								}
+
+								numOffsetIndirect = draw.m_numIndirectIndex * sizeof(uint32_t);
+							}
+
 							if (isValid(draw.m_indexBuffer) )
 							{
 								const IndexBufferGL& ib = m_indexBuffers[draw.m_indexBuffer.idx];
@@ -8437,11 +8460,24 @@ namespace bgfx { namespace gl
 									;
 
 								uintptr_t args = draw.m_startIndirect * BGFX_CONFIG_DRAW_INDIRECT_STRIDE;
-								GL_CHECK(glMultiDrawElementsIndirect(prim.m_type, indexFormat
-									, (void*)args
-									, numDrawIndirect
-									, BGFX_CONFIG_DRAW_INDIRECT_STRIDE
-									) );
+
+								if (isValid(draw.m_numIndirectBuffer) )
+								{
+									GL_CHECK(glMultiDrawElementsIndirectCount(prim.m_type, indexFormat
+										, (void*)args
+										, numOffsetIndirect
+										, numDrawIndirect
+										, BGFX_CONFIG_DRAW_INDIRECT_STRIDE
+										) );
+								}
+								else
+								{
+									GL_CHECK(glMultiDrawElementsIndirect(prim.m_type, indexFormat
+										, (void*)args
+										, numDrawIndirect
+										, BGFX_CONFIG_DRAW_INDIRECT_STRIDE
+										) );
+								}
 							}
 							else
 							{
@@ -8451,11 +8487,24 @@ namespace bgfx { namespace gl
 									;
 
 								uintptr_t args = draw.m_startIndirect * BGFX_CONFIG_DRAW_INDIRECT_STRIDE;
-								GL_CHECK(glMultiDrawArraysIndirect(prim.m_type
-									, (void*)args
-									, numDrawIndirect
-									, BGFX_CONFIG_DRAW_INDIRECT_STRIDE
-									) );
+
+								if (isValid(draw.m_numIndirectBuffer) )
+								{
+									GL_CHECK(glMultiDrawArraysIndirectCount(prim.m_type
+										, (void*)args
+										, numOffsetIndirect
+										, numDrawIndirect
+										, BGFX_CONFIG_DRAW_INDIRECT_STRIDE
+										) );
+								}
+								else
+								{
+									GL_CHECK(glMultiDrawArraysIndirect(prim.m_type
+										, (void*)args
+										, numDrawIndirect
+										, BGFX_CONFIG_DRAW_INDIRECT_STRIDE
+										) );
+								}
 							}
 						}
 						else
@@ -8464,6 +8513,12 @@ namespace bgfx { namespace gl
 							{
 								currentState.m_indirectBuffer.idx = kInvalidHandle;
 								GL_CHECK(glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0) );
+
+								if (isValid(currentState.m_numIndirectBuffer) )
+								{
+									currentState.m_numIndirectBuffer.idx = kInvalidHandle;
+									GL_CHECK(glBindBuffer(GL_PARAMETER_BUFFER_ARB, 0) );
+								}
 							}
 
 							if (isValid(draw.m_indexBuffer) )
@@ -8615,6 +8670,7 @@ namespace bgfx { namespace gl
 		perfStats.numCompute    = statsKeyType[1];
 		perfStats.numBlit       = _render->m_numBlitItems;
 		perfStats.maxGpuLatency = maxGpuLatency;
+		perfStats.gpuFrameNum   = result.m_frameNum;
 		bx::memCopy(perfStats.numPrims, statsNumPrimsRendered, sizeof(perfStats.numPrims) );
 		perfStats.gpuMemoryMax  = -INT64_MAX;
 		perfStats.gpuMemoryUsed = -INT64_MAX;

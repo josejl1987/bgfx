@@ -18,7 +18,7 @@ enum expandEnum(EnumType, string fqnEnumType = EnumType.stringof) = (){
 
 extern(C) @nogc nothrow:
 
-enum uint BGFX_API_VERSION = 115;
+enum uint BGFX_API_VERSION = 117;
 
 alias bgfx_view_id_t = ushort;
 
@@ -410,6 +410,7 @@ enum ulong BGFX_CAPS_VERTEX_ATTRIB_HALF = 0x0000000002000000; /// Vertex attribu
 enum ulong BGFX_CAPS_VERTEX_ATTRIB_UINT10 = 0x0000000004000000; /// Vertex attribute 10_10_10_2 is supported.
 enum ulong BGFX_CAPS_VERTEX_ID = 0x0000000008000000; /// Rendering with VertexID only is supported.
 enum ulong BGFX_CAPS_VIEWPORT_LAYER_ARRAY = 0x0000000010000000; /// Viewport layer is available in vertex shader.
+enum ulong BGFX_CAPS_DRAW_INDIRECT_COUNT = 0x0000000020000000; /// Draw indirect with indirect count is supported.
 enum ulong BGFX_CAPS_TEXTURE_COMPARE_ALL = 0x0000000000300000; /// All texture compare modes are supported.
 
 enum uint BGFX_CAPS_FORMAT_TEXTURE_NONE = 0x00000000; /// Texture format is not supported.
@@ -1029,6 +1030,7 @@ struct bgfx_view_stats_t
 	long cpuTimeEnd; /// CPU (submit) end time.
 	long gpuTimeBegin; /// GPU begin time.
 	long gpuTimeEnd; /// GPU end time.
+	uint gpuFrameNum; /// Frame which generated gpuTimeBegin, gpuTimeEnd.
 }
 
 /// Encoder stats.
@@ -1058,6 +1060,7 @@ struct bgfx_stats_t
 	uint numCompute; /// Number of compute calls submitted.
 	uint numBlit; /// Number of blit calls submitted.
 	uint maxGpuLatency; /// GPU driver latency.
+	uint gpuFrameNum; /// Frame which generated gpuTimeBegin, gpuTimeEnd.
 	ushort numDynamicIndexBuffers; /// Number of used dynamic index buffers.
 	ushort numDynamicVertexBuffers; /// Number of used dynamic vertex buffers.
 	ushort numFrameBuffers; /// Number of used frame buffers.

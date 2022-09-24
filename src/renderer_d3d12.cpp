@@ -1205,6 +1205,7 @@ namespace bgfx { namespace d3d12
 					| BGFX_CAPS_TEXTURE_CUBE_ARRAY
 					| BGFX_CAPS_IMAGE_RW
 					| BGFX_CAPS_VIEWPORT_LAYER_ARRAY
+					| BGFX_CAPS_DRAW_INDIRECT_COUNT
 					);
 				g_caps.limits.maxTextureSize     = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 				g_caps.limits.maxTextureLayers   = D3D12_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
@@ -4135,6 +4136,13 @@ namespace bgfx { namespace d3d12
 				? indirect.m_size/BGFX_CONFIG_DRAW_INDIRECT_STRIDE
 				: _draw.m_numIndirect
 				;
+			ID3D12Resource* numIndirect = NULL;
+			uint32_t numOffsetIndirect = 0;
+			if (isValid(_draw.m_numIndirectBuffer) )
+			{
+				numIndirect = s_renderD3D12->m_indexBuffers[_draw.m_numIndirectBuffer.idx].m_ptr;
+				numOffsetIndirect = _draw.m_numIndirectIndex * sizeof(uint32_t);
+			}
 
 			uint32_t numIndices = 0;
 
@@ -4166,8 +4174,8 @@ namespace bgfx { namespace d3d12
 					, numDrawIndirect
 					, indirect.m_ptr
 					, _draw.m_startIndirect * BGFX_CONFIG_DRAW_INDIRECT_STRIDE
-					, NULL
-					, 0
+					, numIndirect
+					, numOffsetIndirect
 					);
 			}
 			else
@@ -4177,8 +4185,8 @@ namespace bgfx { namespace d3d12
 					, numDrawIndirect
 					, indirect.m_ptr
 					, _draw.m_startIndirect * BGFX_CONFIG_DRAW_INDIRECT_STRIDE
-					, NULL
-					, 0
+					, numIndirect
+					, numOffsetIndirect
 					);
 			}
 
@@ -4442,8 +4450,8 @@ namespace bgfx { namespace d3d12
 #if BX_PLATFORM_XBOXONE
 			flags |= D3D12XBOX_RESOURCE_FLAG_ALLOW_INDIRECT_BUFFER;
 #endif // BX_PLATFORM_XBOXONE
-			format = DXGI_FORMAT_R32G32B32A32_UINT;
-			stride = 16;
+			format = _vertex ? DXGI_FORMAT_R32G32B32A32_UINT : DXGI_FORMAT_R32_UINT;
+			stride = _vertex ? 16 : 4;
 		}
 		else
 		{
@@ -5875,7 +5883,7 @@ namespace bgfx { namespace d3d12
 		DX_RELEASE(m_readback, 0);
 	}
 
-	uint32_t TimerQueryD3D12::begin(uint32_t _resultIdx)
+	uint32_t TimerQueryD3D12::begin(uint32_t _resultIdx, uint32_t _frameNum)
 	{
 		while (0 == m_control.reserve(1) )
 		{
@@ -5889,6 +5897,7 @@ namespace bgfx { namespace d3d12
 		Query& query = m_query[idx];
 		query.m_resultIdx = _resultIdx;
 		query.m_ready     = false;
+		query.m_frameNum  = _frameNum;
 
 		ID3D12GraphicsCommandList* commandList = s_renderD3D12->m_commandList;
 
@@ -5950,6 +5959,7 @@ namespace bgfx { namespace d3d12
 
 			Result& result = m_result[query.m_resultIdx];
 			--result.m_pending;
+			result.m_frameNum = query.m_frameNum;
 
 			uint32_t offset = idx * 2;
 			result.m_begin  = m_queryResult[offset+0];
@@ -6185,7 +6195,7 @@ namespace bgfx { namespace d3d12
 		int64_t timeBegin = bx::getHPCounter();
 		int64_t captureElapsed = 0;
 
-		uint32_t frameQueryIdx = m_gpuTimer.begin(BGFX_CONFIG_MAX_VIEWS);
+		uint32_t frameQueryIdx = m_gpuTimer.begin(BGFX_CONFIG_MAX_VIEWS, _render->m_frameNum);
 
 		if (0 < _render->m_iboffset)
 		{
@@ -7073,6 +7083,7 @@ namespace bgfx { namespace d3d12
 		perfStats.numCompute    = statsKeyType[1];
 		perfStats.numBlit       = _render->m_numBlitItems;
 		perfStats.maxGpuLatency = maxGpuLatency;
+		perfStats.gpuFrameNum   = result.m_frameNum;
 		bx::memCopy(perfStats.numPrims, statsNumPrimsRendered, sizeof(perfStats.numPrims) );
 		perfStats.gpuMemoryMax  = -INT64_MAX;
 		perfStats.gpuMemoryUsed = -INT64_MAX;
