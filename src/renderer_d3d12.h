@@ -62,7 +62,7 @@ extern "C" struct PIXEventsThreadInfo* WINAPI bgfx_PIXGetThreadInfo();
 extern "C" uint64_t                    WINAPI bgfx_PIXEventsReplaceBlock(bool _getEarliestTime);
 #	endif // BX_PLATFORM_WINDOWS
 
-#	include <pix3.h>
+#	include "../3rdparty/directx-headers/include/directx/pix3.h"
 
 #	define _PIX3_BEGINEVENT(_commandList, _color, _name) PIXBeginEvent(_commandList, _color, _name)
 #	define _PIX3_SETMARKER(_commandList, _color, _name)  PIXSetMarker(_commandList, _color, _name)
