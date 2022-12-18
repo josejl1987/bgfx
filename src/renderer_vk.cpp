@@ -210,7 +210,7 @@ VK_IMPORT_DEVICE
 		{ VK_FORMAT_R8_SNORM,                  VK_FORMAT_R8_SNORM,                 VK_FORMAT_UNDEFINED,           VK_FORMAT_UNDEFINED,                { $_, $_, $_, $_ } }, // R8S
 		{ VK_FORMAT_R16_UNORM,                 VK_FORMAT_R16_UNORM,                VK_FORMAT_UNDEFINED,           VK_FORMAT_UNDEFINED,                { $_, $_, $_, $_ } }, // R16
 		{ VK_FORMAT_R16_SINT,                  VK_FORMAT_R16_SINT,                 VK_FORMAT_UNDEFINED,           VK_FORMAT_UNDEFINED,                { $_, $_, $_, $_ } }, // R16I
-		{ VK_FORMAT_R16_UNORM,                 VK_FORMAT_R16_UNORM,                VK_FORMAT_UNDEFINED,           VK_FORMAT_UNDEFINED,                { $_, $_, $_, $_ } }, // R16U
+		{ VK_FORMAT_R16_UINT,                  VK_FORMAT_R16_UINT,                 VK_FORMAT_UNDEFINED,           VK_FORMAT_UNDEFINED,                { $_, $_, $_, $_ } }, // R16U
 		{ VK_FORMAT_R16_SFLOAT,                VK_FORMAT_R16_SFLOAT,               VK_FORMAT_UNDEFINED,           VK_FORMAT_UNDEFINED,                { $_, $_, $_, $_ } }, // R16F
 		{ VK_FORMAT_R16_SNORM,                 VK_FORMAT_R16_SNORM,                VK_FORMAT_UNDEFINED,           VK_FORMAT_UNDEFINED,                { $_, $_, $_, $_ } }, // R16S
 		{ VK_FORMAT_R32_SINT,                  VK_FORMAT_R32_SINT,                 VK_FORMAT_UNDEFINED,           VK_FORMAT_UNDEFINED,                { $_, $_, $_, $_ } }, // R32I
@@ -1220,13 +1220,21 @@ VK_IMPORT
 						BX_TRACE("\t%s", layer.m_name);
 					}
 				}
+#if BX_PLATFORM_OSX
+				uint32_t numEnabledExtensions = headless ? 0 : 3;
 
+				const char* enabledExtension[Extension::Count + 3] =
+#else
 				uint32_t numEnabledExtensions = headless ? 0 : 2;
 
 				const char* enabledExtension[Extension::Count + 2] =
+#endif
 				{
 					VK_KHR_SURFACE_EXTENSION_NAME,
 					KHR_SURFACE_EXTENSION_NAME,
+#if BX_PLATFORM_OSX
+					VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+#endif
 				};
 
 				for (uint32_t ii = 0; ii < Extension::Count; ++ii)
@@ -1288,7 +1296,11 @@ VK_IMPORT
 				VkInstanceCreateInfo ici;
 				ici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 				ici.pNext = NULL;
+#if BX_PLATFORM_OSX
+				ici.flags = 0 | VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#else
 				ici.flags = 0;
+#endif
 				ici.pApplicationInfo        = &appInfo;
 				ici.enabledLayerCount       = numEnabledLayers;
 				ici.ppEnabledLayerNames     = enabledLayer;
@@ -1767,13 +1779,21 @@ VK_IMPORT_INSTANCE
 						BX_TRACE("\t%s", layer.m_name);
 					}
 				}
+#if BX_PLATFORM_OSX
+				uint32_t numEnabledExtensions = headless ? 1 : 3;
 
+				const char* enabledExtension[Extension::Count + 3] =
+#else
 				uint32_t numEnabledExtensions = headless ? 1 : 2;
 
 				const char* enabledExtension[Extension::Count + 2] =
+#endif
 				{
 					VK_KHR_MAINTENANCE1_EXTENSION_NAME,
-					VK_KHR_SWAPCHAIN_EXTENSION_NAME
+					VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+#if BX_PLATFORM_OSX
+					"VK_KHR_portability_subset",
+#endif
 				};
 
 				for (uint32_t ii = 0; ii < Extension::Count; ++ii)
