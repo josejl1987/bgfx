@@ -460,7 +460,6 @@ namespace bgfx { namespace spirv
 		shader->setEnvInput(glslang::EShSourceHlsl, stage, glslang::EShClientVulkan, s_GLSL_VULKAN_CLIENT_VERSION);
 		shader->setEnvClient(glslang::EShClientVulkan, getGlslangTargetVulkanVersion(_version));
 		shader->setEnvTarget(glslang::EShTargetSpv, getGlslangTargetSpirvVersion(_version));
-
 		// Reserve two spots for the stage UBOs
 		shader->setShiftBinding(glslang::EResUbo, (stage == EShLanguage::EShLangFragment ? kSpirvFragmentBinding : kSpirvVertexBinding));
 		shader->setShiftBinding(glslang::EResTexture, kSpirvBindShift);
@@ -685,6 +684,12 @@ namespace bgfx { namespace spirv
 					}
 				}
 
+				// Output preprocessed shader so that HLSL can be debugged via GPA
+// or PIX. Compiling through memory won't embed preprocessed shader
+// file path.
+				std::string hlslfp;
+
+		
 				if (g_verbose)
 				{
 					program->dumpReflection();
@@ -697,6 +702,16 @@ namespace bgfx { namespace spirv
 
 				glslang::SpvOptions options;
 				options.disableOptimizer = false;
+				bool debug = _options.debugInformation;
+				options.generateDebugInfo = debug;
+
+				if (debug)
+				{
+					hlslfp = _options.outputFilePath + ".hlsl";
+					writeFile(hlslfp.c_str(), _code.c_str(), (int32_t)_code.size());
+					intermediate->setSourceFile(hlslfp.c_str());
+				}
+
 
 				glslang::GlslangToSpv(*intermediate, spirv, &options);
 
