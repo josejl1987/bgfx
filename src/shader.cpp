@@ -223,7 +223,7 @@ namespace bgfx
 				uint8_t type;
 				bx::read(_reader, type, _err);
 
-				uint8_t num;
+				uint16_t num;
 				bx::read(_reader, num, _err);
 
 				uint16_t regIndex;

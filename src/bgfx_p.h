@@ -1455,14 +1455,14 @@ namespace bgfx
 		uint32_t m_num;
 	};
 
-	constexpr uint8_t  kConstantOpcodeTypeShift = 27;
-	constexpr uint32_t kConstantOpcodeTypeMask  = UINT32_C(0xf8000000);
-	constexpr uint8_t  kConstantOpcodeLocShift  = 11;
-	constexpr uint32_t kConstantOpcodeLocMask   = UINT32_C(0x07fff800);
+	constexpr uint8_t  kConstantOpcodeTypeShift = 59;
+	constexpr uint64_t kConstantOpcodeTypeMask  = UINT64_C(0xF800000000000000);
+	constexpr uint8_t  kConstantOpcodeLocShift  = 16;
+	constexpr uint64_t kConstantOpcodeLocMask   = UINT64_C(0x7FFFFFFFFFF0000);
 	constexpr uint8_t  kConstantOpcodeNumShift  = 1;
-	constexpr uint32_t kConstantOpcodeNumMask   = UINT32_C(0x000007fe);
+	constexpr uint64_t kConstantOpcodeNumMask   = UINT64_C(0x00000Ffe);
 	constexpr uint8_t  kConstantOpcodeCopyShift = 0;
-	constexpr uint32_t kConstantOpcodeCopyMask  = UINT32_C(0x00000001);
+	constexpr uint64_t kConstantOpcodeCopyMask  = UINT64_C(0x00000001);
 
 	constexpr uint8_t kUniformFragmentBit  = 0x10;
 	constexpr uint8_t kUniformSamplerBit   = 0x20;
@@ -1478,7 +1478,7 @@ namespace bgfx
 	class UniformBuffer
 	{
 	public:
-		static UniformBuffer* create(uint32_t _size = 1<<20)
+		static UniformBuffer* create(uint32_t _size = 1<<22)
 		{
 			const uint32_t structSize = sizeof(UniformBuffer)-sizeof(UniformBuffer::m_buffer);
 
@@ -1508,20 +1508,21 @@ namespace bgfx
 			}
 		}
 
-		static uint32_t encodeOpcode(UniformType::Enum _type, uint16_t _loc, uint16_t _num, uint16_t _copy)
+		static uint64_t encodeOpcode(UniformType::Enum _type, uint16_t _loc, uint16_t _num, uint16_t _copy)
 		{
-			const uint32_t type = _type << kConstantOpcodeTypeShift;
-			const uint32_t loc  = _loc  << kConstantOpcodeLocShift;
-			const uint32_t num  = _num  << kConstantOpcodeNumShift;
-			const uint32_t copy = _copy << kConstantOpcodeCopyShift;
-			return type|loc|num|copy;
+			const uint64_t type = (uint64_t)_type << kConstantOpcodeTypeShift;
+			const uint64_t loc  = (uint64_t)_loc  << kConstantOpcodeLocShift;
+			const uint64_t num  = (uint64_t)_num  << kConstantOpcodeNumShift;
+			const uint64_t copy = (uint64_t)_copy << kConstantOpcodeCopyShift;
+			auto val = type | loc | num | copy;
+			return val;
 		}
 
-		static void decodeOpcode(uint32_t _opcode, UniformType::Enum& _type, uint16_t& _loc, uint16_t& _num, uint16_t& _copy)
+		static void decodeOpcode(uint64_t _opcode, UniformType::Enum& _type, uint16_t& _loc, uint16_t& _num, uint16_t& _copy)
 		{
-			const uint32_t type = (_opcode&kConstantOpcodeTypeMask) >> kConstantOpcodeTypeShift;
-			const uint32_t loc  = (_opcode&kConstantOpcodeLocMask ) >> kConstantOpcodeLocShift;
-			const uint32_t num  = (_opcode&kConstantOpcodeNumMask ) >> kConstantOpcodeNumShift;
+			const uint64_t type = (_opcode&kConstantOpcodeTypeMask) >> kConstantOpcodeTypeShift;
+			const uint64_t loc  = (_opcode&kConstantOpcodeLocMask ) >> kConstantOpcodeLocShift;
+			const uint64_t num  = (_opcode&kConstantOpcodeNumMask ) >> kConstantOpcodeNumShift;
 			const uint32_t copy = (_opcode&kConstantOpcodeCopyMask); // >> kConstantOpcodeCopyShift;
 
 			_type = (UniformType::Enum)(type);
@@ -1541,11 +1542,11 @@ namespace bgfx
 			}
 		}
 
-		void write(uint32_t _value)
-		{
-			write(&_value, sizeof(uint32_t) );
-		}
 
+		void write(uint64_t _value)
+		{
+			write(&_value, sizeof(uint64_t));
+		}
 		const char* read(uint32_t _size)
 		{
 			BX_ASSERT(m_pos < m_size, "Out of bounds %d (size: %d).", m_pos, m_size);
@@ -1554,10 +1555,11 @@ namespace bgfx
 			return result;
 		}
 
-		uint32_t read()
+
+		uint64_t read()
 		{
-			uint32_t result;
-			bx::memCopy(&result, read(sizeof(uint32_t) ), sizeof(uint32_t) );
+			uint64_t result;
+			bx::memCopy(&result, read(sizeof(uint64_t)), sizeof(uint64_t));
 			return result;
 		}
 
@@ -1578,7 +1580,7 @@ namespace bgfx
 
 		void finish()
 		{
-			write(UniformType::End);
+			write((uint64_t)UniformType::End);
 			m_pos = 0;
 		}
 
@@ -4178,7 +4180,7 @@ namespace bgfx
 				bx::read(&reader, type, &err);
 				type &= ~kUniformMask;
 
-				uint8_t num;
+				uint16_t num;
 				bx::read(&reader, num, &err);
 
 				uint16_t regIndex;

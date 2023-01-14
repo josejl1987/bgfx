@@ -370,7 +370,7 @@ namespace bgfx { namespace hlsl
 					? UniformType::Enum(kUniformSamplerBit | type)
 					: type
 					;
-				un.num = (uint8_t)ctType.Elements;
+				un.num = (uint16_t)ctType.Elements;
 				un.regIndex = ctInfo.RegisterIndex;
 				un.regCount = ctInfo.RegisterCount;
 
@@ -478,7 +478,7 @@ namespace bgfx { namespace hlsl
 								Uniform un;
 								un.name = varDesc.Name;
 								un.type = uniformType;
-								un.num = uint8_t(constDesc.Elements);
+								un.num = uint16_t(constDesc.Elements);
 								un.regIndex = uint16_t(varDesc.StartOffset);
 								un.regCount = uint16_t(bx::alignUp(varDesc.Size, 16) / 16);
 								_uniforms.push_back(un);

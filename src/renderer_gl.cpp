@@ -4399,7 +4399,7 @@ namespace bgfx { namespace gl
 
 			for (;;)
 			{
-				uint32_t opcode = _uniformBuffer.read();
+				uint64_t opcode = _uniformBuffer.read();
 
 				if (UniformType::End == opcode)
 				{
@@ -7875,7 +7875,7 @@ namespace bgfx { namespace gl
 					{
 						GL_CHECK(glEnable(GL_STENCIL_TEST) );
 
-						uint32_t bstencil = newbStencil;
+						uint64_t bstencil = newbStencil;
 						uint8_t frontAndBack = bstencil != BGFX_STENCIL_NONE && bstencil != newfbstencil[0];
 
 // 						uint32_t bchanged = unpackStencil(1, changedStencil);

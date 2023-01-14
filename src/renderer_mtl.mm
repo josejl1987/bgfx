@@ -1577,7 +1577,7 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 			for (;;)
 			{
-				uint32_t opcode = _uniformBuffer.read();
+				uint64_t opcode = _uniformBuffer.read();
 
 				if (UniformType::End == opcode)
 				{

@@ -1514,14 +1514,14 @@ namespace bgfx
 
 	void UniformBuffer::writeUniform(UniformType::Enum _type, uint16_t _loc, const void* _value, uint16_t _num)
 	{
-		uint32_t opcode = encodeOpcode(_type, _loc, _num, true);
+		uint64_t opcode = encodeOpcode(_type, _loc, _num, true);
 		write(opcode);
 		write(_value, g_uniformTypeSize[_type]*_num);
 	}
 
 	void UniformBuffer::writeUniformHandle(UniformType::Enum _type, uint16_t _loc, UniformHandle _handle, uint16_t _num)
 	{
-		uint32_t opcode = encodeOpcode(_type, _loc, _num, false);
+		uint64_t opcode = encodeOpcode(_type, _loc, _num, false);
 		write(opcode);
 		write(&_handle, sizeof(UniformHandle) );
 	}
@@ -1529,8 +1529,8 @@ namespace bgfx
 	void UniformBuffer::writeMarker(const char* _marker)
 	{
 		uint16_t num = (uint16_t)bx::strLen(_marker)+1;
-		uint32_t opcode = encodeOpcode(bgfx::UniformType::Count, 0, num, true);
-		write(opcode);
+		uint64_t opcode = encodeOpcode(bgfx::UniformType::Count, 0, num, true);
+		write(opcode); 
 		write(_marker, num);
 	}
 
@@ -2495,7 +2495,7 @@ namespace bgfx
 		_uniformBuffer->reset(_begin);
 		while (_uniformBuffer->getPos() < _end)
 		{
-			uint32_t opcode = _uniformBuffer->read();
+			uint64_t opcode = _uniformBuffer->read();
 
 			if (UniformType::End == opcode)
 			{
@@ -5287,7 +5287,7 @@ namespace bgfx
 		s_ctx->m_encoder0->setCondition(_handle, _visible);
 	}
 
-	void setStencil(uint32_t _fstencil, uint32_t _bstencil)
+	void setStencil(uint64_t _fstencil, uint64_t _bstencil)
 	{
 		BGFX_CHECK_ENCODER0();
 		s_ctx->m_encoder0->setStencil(_fstencil, _bstencil);

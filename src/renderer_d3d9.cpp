@@ -1885,7 +1885,7 @@ namespace bgfx { namespace d3d9
 
 			for (;;)
 			{
-				uint32_t opcode = _uniformBuffer.read();
+				uint64_t opcode = _uniformBuffer.read();
 
 				if (UniformType::End == opcode)
 				{
@@ -3988,8 +3988,8 @@ namespace bgfx { namespace d3d9
 
 					if (0 != newfStencil)
 					{
-						uint32_t fstencil = newfbstencil[0];
-						uint32_t bstencil = newfbstencil[1];
+						uint64_t fstencil = newfbstencil[0];
+						uint64_t bstencil = newfbstencil[1];
 						uint8_t frontAndBack = bstencil != BGFX_STENCIL_NONE && bstencil != fstencil;
 						DX_CHECK(device->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE, 0 != frontAndBack) );
 

@@ -1481,7 +1481,7 @@ namespace bgfx { namespace webgpu
 
 			for (;;)
 			{
-				uint32_t opcode = _uniformBuffer.read();
+				uint64_t opcode = _uniformBuffer.read();
 
 				if (UniformType::End == opcode)
 				{

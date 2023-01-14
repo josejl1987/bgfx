@@ -4098,7 +4098,7 @@ VK_IMPORT_DEVICE
 
 			for (;;)
 			{
-				uint32_t opcode = _uniformBuffer.read();
+				uint64_t opcode = _uniformBuffer.read();
 
 				if (UniformType::End == opcode)
 				{
@@ -4831,7 +4831,7 @@ VK_DESTROY
 				uint8_t type = 0;
 				bx::read(&reader, type, &err);
 
-				uint8_t num;
+				uint16_t num;
 				bx::read(&reader, num, &err);
 
 				uint16_t regIndex;

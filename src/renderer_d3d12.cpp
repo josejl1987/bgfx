@@ -2843,8 +2843,8 @@ namespace bgfx { namespace d3d12
 				;
 			_desc.DepthFunc = s_cmpFunc[func];
 
-			uint32_t bstencil = _bstencil;
-			uint32_t frontAndBack = bstencil != BGFX_STENCIL_NONE && bstencil != fstencil;
+			uint64_t bstencil = _bstencil;
+			uint64_t frontAndBack = bstencil != BGFX_STENCIL_NONE && bstencil != fstencil;
 			bstencil = frontAndBack ? bstencil : fstencil;
 
 			_desc.StencilEnable    = 0 != _stencil;
@@ -3362,7 +3362,7 @@ namespace bgfx { namespace d3d12
 
 			for (;;)
 			{
-				uint32_t opcode = _uniformBuffer.read();
+				uint64_t opcode = _uniformBuffer.read();
 
 				if (UniformType::End == opcode)
 				{
@@ -4772,7 +4772,7 @@ namespace bgfx { namespace d3d12
 				uint8_t type = 0;
 				bx::read(&reader, type, &err);
 
-				uint8_t num = 0;
+				uint16_t num = 0;
 				bx::read(&reader, num, &err);
 
 				uint16_t regIndex = 0;

@@ -68,7 +68,7 @@ namespace bgfx
 
 		std::string name;
 		UniformType::Enum type;
-		uint8_t num;
+		uint16_t num;
 		uint16_t regIndex;
 		uint16_t regCount;
 		uint8_t texComponent;
