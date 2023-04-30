@@ -310,7 +310,7 @@ namespace bgfx
 		"i_data4",
 		NULL
 	};
-
+	#ifndef BRTSHADERC
 	void fatal(const char* _filePath, uint16_t _line, Fatal::Enum _code, const char* _format, ...)
 	{
 		BX_UNUSED(_filePath, _line, _code);
@@ -336,6 +336,7 @@ namespace bgfx
 
 		va_end(argList);
 	}
+	#endif
 	Options::Options()
 		: shaderType(' ')
 		, disasm(false)

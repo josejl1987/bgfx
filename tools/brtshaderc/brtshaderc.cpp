@@ -46,6 +46,9 @@ void printError(FILE* file, const char* format, ...)
 //#undef BX_WARN
 //#undef BX_CHECK
 
+#define BRTSHADERC
+
+
 // include original shaderc code files
 #include "../../tools/shaderc/shaderc.cpp"
 #include "../../tools/shaderc/shaderc_hlsl.cpp"
@@ -132,13 +135,16 @@ namespace shaderc
 
 
 
-    const bgfx::Memory* compileShader(ShaderType type, const char* filePath, const char* defines, const char* varyingPath, const char* profile)
+const bgfx::Memory* compileShader(
+        ShaderType type, const char* filePath,
+        const std::vector<std::string>& includes, const char* defines ,
+        const char* varyingPath , const char* profile )
     {
         bgfx::Options options;
 
         options.inputFilePath = filePath;
         options.shaderType = type;
-
+        options.debugInformation = true;
         // set platform
 #if BX_PLATFORM_LINUX
         options.platform = "linux";
@@ -230,6 +236,12 @@ namespace shaderc
             options.includeDirs.push_back(dir);
         }
 
+
+			for (auto& p : includes) {
+            options.includeDirs.push_back(p);
+	        }
+
+
         // set defines
         while (NULL != defines
         &&    '\0'  != *defines)
@@ -261,7 +273,7 @@ namespace shaderc
 
 		bx::DefaultAllocator defaultAllocator;
 		char* varyingdefData = (char*)BX_ALLOC(&defaultAllocator, varyingdefSize+1);
-
+        memset(varyingdefData, 0, varyingdefSize + 1);
 		bx::read(&varyingReader, varyingdefData, varyingdefSize, nullptr);
 		bx::close(&varyingReader);
 		varyingdefData[varyingdefSize] = '\0';
@@ -377,7 +389,7 @@ namespace shaderc
 
         Options options;
         options.inputFilePath = filePath;
-        options.outputFilePath = outFilePath;
+        options.outputFilePath = "";
         options.shaderType = bx::toLower(type[0]);
 
         options.disasm = cmdLine.hasArg('\0', "disasm");
@@ -467,6 +479,9 @@ namespace shaderc
             options.includeDirs.push_back(dir);
         }
 
+	
+
+
         const char* defines = cmdLine.findOption("define");
         while (NULL != defines
         &&    '\0'  != *defines)
@@ -512,8 +527,9 @@ namespace shaderc
 			}
 
 			bx::DefaultAllocator defaultAllocator;
-			char* varyingdefData = (char*)BX_ALLOC(&defaultAllocator, varyingdefSize);
-
+            char* varyingdefData =
+                (char*)BX_ALLOC(&defaultAllocator, varyingdefSize + 1);
+            memset(varyingdefData, 0, varyingdefSize + 1);
 			bx::read(&varyingReader, varyingdefData, varyingdefSize, nullptr);
 			bx::close(&varyingReader);
 
@@ -559,6 +575,10 @@ namespace shaderc
             compiled = compileShader(varyingdefData, commandLineComment.c_str(), data, size, options, writer);
 
             bx::close(writer);
+            if (compiled)
+                return 0;
+            else
+                return 1;
             ///@delete writer;
         }
     }
